@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Arkiv.Data;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -21,6 +22,8 @@ namespace Arkiv
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            SqlDataHandler data = new SqlDataHandler(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=D:\Local Programming Projects\db.mdf;Integrated Security=True;Connect Timeout=30");
+            services.AddSingleton<ISqlData>(data);
             services.AddMvc();
         }
 

@@ -13250,23 +13250,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\henr054a\\.nuget\\packages\\": {},
+    "C:\\Users\\henri\\.nuget\\packages\\": {},
     "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\henr054a\\Documents\\Programming\\Core\\Arkiv-Interface\\Arkiv\\Arkiv.csproj",
+      "projectUniqueName": "D:\\Local Programming Projects\\Arkiv-Interface\\Arkiv\\Arkiv.csproj",
       "projectName": "Arkiv",
-      "projectPath": "C:\\Users\\henr054a\\Documents\\Programming\\Core\\Arkiv-Interface\\Arkiv\\Arkiv.csproj",
-      "packagesPath": "C:\\Users\\henr054a\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\henr054a\\Documents\\Programming\\Core\\Arkiv-Interface\\Arkiv\\obj\\",
+      "projectPath": "D:\\Local Programming Projects\\Arkiv-Interface\\Arkiv\\Arkiv.csproj",
+      "packagesPath": "C:\\Users\\henri\\.nuget\\packages\\",
+      "outputPath": "D:\\Local Programming Projects\\Arkiv-Interface\\Arkiv\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
       ],
       "configFilePaths": [
-        "C:\\Users\\henr054a\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\henri\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
