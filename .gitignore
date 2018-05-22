@@ -418,6 +418,8 @@ typings/
 ### VisualStudio Patch ###
 # By default, sensitive information, such as encrypted password
 # should be stored in the .pubxml.user file.
-
+.vs
+/Arkiv/bin
+/Arkiv/obj
 
 # End of https://www.gitignore.io/api/aspnetcore,visualstudio
