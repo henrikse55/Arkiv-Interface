@@ -1,0 +1,14 @@
+﻿{
+    "Connection": "Data Source=172.16.5.20;Persist Security Info=True;User ID=SqlUser;Password=SuperSecure123;Encrypt=True;TrustServerCertificate=True",
+    "AdminPanel": {
+        "Users": [
+            "Administrator"
+        ],
+        "Groups": [
+            "Administrators"
+        ]
+    },
+    "Logging": {
+        "ActivityLogging": "true"
+    }
+}
