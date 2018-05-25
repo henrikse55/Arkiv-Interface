@@ -29,7 +29,9 @@ namespace Arkiv
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            ISqlData data = new SqlDataHandler(Configuration["Connection"]);
+            //ISqlData data = new SqlDataHandler(Configuration["Connection"]);
+            Func<IServiceProvider, ISqlData> sqlFactory = 
+                new Func<IServiceProvider, ISqlData>(x => new SqlDataHandler(Configuration["Connection"]));
             Config config = new Config()
             {
                 Connection = Configuration["Connection"],
@@ -38,7 +40,7 @@ namespace Arkiv
                 ActivityLogging = Configuration["Logging:ActivityLogging"] == "true",
             };
 
-            services.AddSingleton(data)
+            services.AddTransient<ISqlData>(sqlFactory)
                     .AddSingleton(config)
                     .AddMvc();
         }
