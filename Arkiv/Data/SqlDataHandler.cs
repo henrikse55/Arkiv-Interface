@@ -142,7 +142,7 @@ namespace Arkiv.Data
             }
         }
 
-        public async Task<int> ExecuteAsync(string query, (string, object)[] paramters = null)
+        public async Task<int> ExecuteAsync(string query, (string, object)[] parameters = null)
         {
             using (SqlConnection conn = new SqlConnection(_connection))
             {
@@ -151,8 +151,8 @@ namespace Arkiv.Data
                 {
                     using (SqlCommand command = new SqlCommand(query, conn, trans))
                     {
-                        if (paramters != null)
-                            foreach ((string, object) parameter in paramters)
+                        if (parameters != null)
+                            foreach ((string, object) parameter in parameters)
                                 command.Parameters.AddWithValue(parameter.Item1, parameter.Item2);
 
                         int rows = await command.ExecuteNonQueryAsync();
@@ -186,6 +186,52 @@ namespace Arkiv.Data
                             ("@user", user),
                             ("@parameters", paramters)
             });
+        }
+
+        public DataTable GetDataRaw(string query, (string, object)[] parameters = null)
+        {
+            using (SqlConnection conn = new SqlConnection(_connection))
+            {
+                conn.Open();
+                using (SqlTransaction trans = conn.BeginTransaction())
+                {
+                    using (SqlCommand command = new SqlCommand(query, conn, trans))
+                    {
+                        if (parameters != null)
+                            foreach ((string, object) parameter in parameters)
+                                command.Parameters.AddWithValue(parameter.Item1, parameter.Item2);
+
+                        SqlDataReader reader = command.ExecuteReader();
+                        DataTable table = new DataTable();
+                        table.Load(reader);
+                        return table;
+                    }
+                }
+
+            }
+        }
+
+        public async Task<DataTable> GetDataRawAsync(string query, (string, object)[] parameters = null)
+        {
+            using (SqlConnection conn = new SqlConnection(_connection))
+            {
+                await conn.OpenAsync();
+                using (SqlTransaction trans = conn.BeginTransaction())
+                {
+                    using (SqlCommand command = new SqlCommand(query, conn, trans))
+                    {
+                        if (parameters != null)
+                            foreach ((string, object) parameter in parameters)
+                                command.Parameters.AddWithValue(parameter.Item1, parameter.Item2);
+
+                        SqlDataReader reader = await command.ExecuteReaderAsync();
+                        DataTable table = new DataTable();
+                        table.Load(reader);
+                        return table;
+                    }
+                }
+
+            }
         }
 
         #region Utility

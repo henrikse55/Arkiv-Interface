@@ -47,6 +47,25 @@ namespace Arkiv.Data
         Task<int> ExecuteAsync(string query, (string, object)[] parameters = null);
 
         /// <summary>
+        /// Executes the given query with optional paramters and gives the result back raw
+        /// </summary>
+        /// <param name="query">The query</param>
+        /// <param name="parameters">the optional paramters</param>
+        /// <seealso cref="GetDataRawAsync(string, (string, object)[])"/>
+        /// <returns>the data which was returned in a datatable</returns>
+        DataTable GetDataRaw(string query, (string, object)[] parameters = null);
+
+
+        /// <summary>
+        /// Executes the given query with optional paramters and gives the result back raw
+        /// </summary>
+        /// <param name="query">The query</param>
+        /// <param name="parameters">the optional paramters</param>
+        /// <seealso cref="GetDataRawAsync(string, (string, object)[])"/>
+        /// <returns>the data which was returned in a datatable</returns>
+        DataTable GetDataRawAsync(string query, (string, object)[] parameters = null);
+
+        /// <summary>
         /// Writes a log entry in the activity table
         /// </summary>
         /// <param name="action">What the user did</param>
