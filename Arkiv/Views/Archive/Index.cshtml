@@ -1,7 +1,28 @@
-﻿
+﻿@model Arkiv.Models.ArchiveJoinedModel
+
 @{
     ViewData["Title"] = "Index";
 }
 
-<h2>Index</h2>
-
+<div class="container-fluid text-center">
+    <strong>Hello, @User.Identity.Name</strong>
+    <hr />
+    <div class="row">
+        <div class="col-md-4">
+            <h1>Filter section</h1>
+            <div class="table-bordered">
+                <select asp-items="Model.selectListItems" onchange="GetSelectedItem(this)" class="form-control dropdown"></select>
+                <hr />
+                <div class="table-bordered" id="FilterContainer"></div>
+                <input type="button" value="Apply Filters" id="ApplyButton" class="form-control" />
+            </div>
+        </div>
+        <div class="col-md-8">
+            <h1>Table section</h1>
+            <div class="table-bordered">    
+                <table class="table">
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

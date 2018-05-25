@@ -1,0 +1,15 @@
+﻿@model string
+
+<div id="@("FilterPartial" + Model)">
+    <p>
+        <a class="btn btn-primary" data-toggle="collapse" href="@("#CollapseFilter" + Model)">@Model</a>
+        <button onclick="RemoveFilter(@("FilterPartial" + Model))" class="btn btn-danger">Remove</button>
+    </p>
+    <div class="collapse" id="@("CollapseFilter" + Model)">
+        <div class="card card-body">
+            <select asp-items="@(new List<SelectListItem>() { new SelectListItem { Value = "Single", Text = "Single" }, new SelectListItem { Value = "Range", Text = "Range" } })" class="form-control"></select>
+            <br />
+            <input type="text" class="form-control" id="Filtering" />
+        </div>
+    </div>
+</div>

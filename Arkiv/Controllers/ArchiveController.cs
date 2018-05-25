@@ -1,11 +1,12 @@
-﻿using Arkiv.Data;
-using Arkiv.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Collections.Generic;
-using System.Data;
 using System.Security.Principal;
+using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
+using Arkiv.Models;
+using System.Linq;
+using Arkiv.Data;
 
 namespace Arkiv.Controllers
 {
@@ -19,15 +20,36 @@ namespace Arkiv.Controllers
             sql = _data;
         }
 
-        public IActionResult Index()
+        [HttpGet]
+        public async Task<IActionResult> Index()
         {
-            return View();
+            IEnumerable<ColumnNameModel> model = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS", null);
+
+            List<SelectListItem> list = new List<SelectListItem>();
+            
+            foreach(ColumnNameModel item in model)
+            {
+                list.Add(new SelectListItem { Value = item.COLUMN_NAME, Text = item.COLUMN_NAME });
+            }
+
+            //IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>("SELECT * FROM arkiv", null);
+
+            return View(new ArchiveJoinedModel() { selectListItems = list.AsEnumerable(), data = null });
         }
 
+        [HttpPost]
+        public IActionResult GetFilterPartial(string SelectedColumn)
+        {
+            return PartialView("FilterPartial", SelectedColumn);
+        }   
+
+        [HttpGet]
         public IActionResult Test()
         {
             var test = new WindowsPrincipal(WindowsIdentity.GetCurrent());
+
             List<string> groups = new List<string>();
+
             foreach (var t in WindowsIdentity.GetCurrent().Groups)
                 try
                 {
@@ -40,5 +62,17 @@ namespace Arkiv.Controllers
 
             return Json(new { isInGroup = test.IsInRole("Administrators"), User.Identity.Name,  groups});
         }
+
+        [HttpGet]
+        public IActionResult Admin()
+        {
+            if(User.IsInRole("Administrator"))
+            {
+                return View();
+            }
+
+            return Redirect("Index");
+        }
+
     }
 }

@@ -73,10 +73,11 @@ namespace Arkiv.Data
                     string[] properties = GetProps(type);
                     SqlDataReader reader = await select.ExecuteReaderAsync();
 
-                    T instance = (T)Activator.CreateInstance(type);
                     List<T> items = new List<T>();
-                    while (reader.Read())
+                    bool state = false;
+                    while (state = reader.Read())
                     {
+                        T instance = (T)Activator.CreateInstance(type);
                         foreach (string prop in properties)
                         {
                             type.GetProperty(prop).SetValue(instance, reader[prop]);

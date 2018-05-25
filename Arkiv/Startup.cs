@@ -24,7 +24,7 @@ namespace Arkiv
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            ISqlData data = new SqlDataHandler("");
+            ISqlData data = new SqlDataHandler(@"Data Source=172.16.5.20;User ID=SqlUser;Password=SuperSecure123");
             services.AddSingleton<ISqlData>(data);
 
             services.AddMvc();
@@ -49,7 +49,7 @@ namespace Arkiv
             {
                 routes.MapRoute(
                     name: "default",
-                    template: "{controller=Login}/{action=Login}/{id?}");
+                    template: "{controller=Archive}/{action=Index}/{id?}");
             });
         }
     }
