@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Arkiv.Data;
@@ -16,7 +17,11 @@ namespace Arkiv
     {
         public Startup(IConfiguration configuration)
         {
-            Configuration = configuration;
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("Config.json");
+
+            Configuration = builder.Build();
         }
 
         public IConfiguration Configuration { get; }
@@ -24,10 +29,19 @@ namespace Arkiv
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            ISqlData data = new SqlDataHandler(@"Data Source=172.16.5.20;User ID=SqlUser;Password=SuperSecure123");
-            services.AddSingleton<ISqlData>(data);
+            Func<IServiceProvider, ISqlData> sqlFactory = 
+                new Func<IServiceProvider, ISqlData>(x => new SqlDataHandler(Configuration["Connection"]));
+            Config config = new Config()
+            {
+                Connection = Configuration["Connection"],
+                AdminGroups = Configuration.GetSection("AdminPanel:Groups").AsEnumerable().Where(x => !string.IsNullOrEmpty(x.Value)).Select(x => x.Value).ToArray(),
+                AdminUsers = Configuration.GetSection("AdminPanel:Users").AsEnumerable().Where(x => !string.IsNullOrEmpty(x.Value)).Select(x => x.Value).ToArray(),
+                ActivityLogging = Configuration["Logging:ActivityLogging"] == "true",
+            };
 
-            services.AddMvc();
+            services.AddTransient<ISqlData>(sqlFactory)
+                    .AddSingleton(config)
+                    .AddMvc();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

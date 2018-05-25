@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
@@ -12,88 +13,228 @@ namespace Arkiv.Data
     public class SqlDataHandler : ISqlData
     {
         private string _connection {get; set;}
-        private SqlConnection Connection { get; set; }
-
 
         public SqlDataHandler(string connection)
         {
             _connection = connection;
-            Connection = new SqlConnection(_connection);
         }
 
-        /// <summary>
-        /// Execute a query for selection of data from the db
-        /// </summary>
-        /// <typeparam name="T">The model which should be filled</typeparam>
-        /// <param name="query">The query which should be executed</param>
-        /// <param name="parameters">the parameter and it's corresponding value</param>
-        /// <returns>A set of all rows found in the db</returns>
-        public IEnumerable<T> SelectData<T>(string query, (string, object)[] parameters)
+        public IEnumerable<T> SelectData<T>(string query, (string, object)[] parameters = null)
         {
-            Connection.Open();
-            using (SqlTransaction trans = Connection.BeginTransaction())
+            using (SqlConnection conn = new SqlConnection(_connection))
             {
-                using (SqlCommand select = new SqlCommand(query, Connection, trans))
+                conn.Open();
+                using (SqlTransaction trans = conn.BeginTransaction())
                 {
-                    Type type = typeof(T);
-                    string[] properties = GetProps(type);
-                    SqlDataReader reader = select.ExecuteReader();
-
-                    T instance = (T)Activator.CreateInstance(type);
-                    while(reader.Read())
+                    using (SqlCommand select = new SqlCommand(query, conn, trans))
                     {
-                        foreach (string prop in properties)
+                        #region Prepare parameters
+                        if (parameters != null)
+                            foreach ((string, object) t in parameters)
+                                select.Parameters.AddWithValue(t.Item1, t.Item2);
+                        #endregion
+
+                        #region Load Data
+                        Type type = typeof(T);
+                        string[] properties = GetProps(type);
+                        SqlDataReader reader = select.ExecuteReader();
+
+                        while (reader.Read())
                         {
-                            type.GetProperty(prop).SetValue(instance, reader[prop]);
+                            T instance = (T)Activator.CreateInstance(type);
+                            foreach (string prop in properties)
+                            {
+                                int index = reader.GetOrdinal(prop);
+                                Type dataType = reader.GetFieldType(index);
+                                TypeConverter converter = TypeDescriptor.GetConverter(dataType);
+
+                                if (converter.IsValid(reader[prop]))
+                                {
+                                    type.GetProperty(prop).SetValue(instance, converter.ConvertTo(reader[prop], type.GetProperty(prop).PropertyType));
+                                }
+                                else
+                                {
+                                    type.GetProperty(prop).SetValue(instance, reader[prop]);
+                                }
+                            }
+
+                            yield return instance;
                         }
+                        #endregion
 
-                        yield return instance;
+                        reader.Close();
                     }
-
-                    reader.Close();
                 }
             }
         }
 
-        /// <summary>
-        /// Execute a query for selection of data from the db
-        /// </summary>
-        /// <typeparam name="T">The model which should be filled</typeparam>
-        /// <param name="query">The query which should be executed</param>
-        /// <param name="parameters">the parameter and it's corresponding value</param>
-        /// <returns>A set of all rows found in the db</returns>
-        public async Task<IEnumerable<T>> SelectDataAsync<T>(string query, (string, object)[] parameters)
+        public async Task<IEnumerable<T>> SelectDataAsync<T>(string query, (string, object)[] parameters = null)
         {
-            await Connection.OpenAsync();
-            using (SqlTransaction trans = Connection.BeginTransaction())
+            using (SqlConnection conn = new SqlConnection(_connection))
             {
-                using (SqlCommand select = new SqlCommand(query, Connection, trans))
+                await conn.OpenAsync();
+                using (SqlTransaction trans = conn.BeginTransaction())
                 {
-                    Type type = typeof(T);
-                    string[] properties = GetProps(type);
-                    SqlDataReader reader = await select.ExecuteReaderAsync();
-
-                    List<T> items = new List<T>();
-                    bool state = false;
-                    while (state = reader.Read())
+                    using (SqlCommand select = new SqlCommand(query, conn, trans))
                     {
-                        T instance = (T)Activator.CreateInstance(type);
-                        foreach (string prop in properties)
+                        #region Prepare parameters
+                        if (parameters != null)
+                            foreach ((string, object) t in parameters)
+                                select.Parameters.AddWithValue(t.Item1, t.Item2);
+                        #endregion
+
+                        #region Load Data
+                        Type type = typeof(T);
+                        string[] properties = GetProps(type);
+                        SqlDataReader reader = await select.ExecuteReaderAsync();
+
+                        List<T> items = new List<T>();
+                        while (reader.Read())
                         {
-                            type.GetProperty(prop).SetValue(instance, reader[prop]);
+                            T instance = (T)Activator.CreateInstance(type);
+                            foreach (string prop in properties)
+                            {
+                                int index = reader.GetOrdinal(prop);
+                                Type dataType = reader.GetFieldType(index);
+                                TypeConverter converter = TypeDescriptor.GetConverter(dataType);
+
+                                if (converter.IsValid(reader[prop]))
+                                {
+                                    type.GetProperty(prop).SetValue(instance, converter.ConvertTo(reader[prop], type.GetProperty(prop).PropertyType));
+                                }
+                                else
+                                {
+                                    type.GetProperty(prop).SetValue(instance, reader[prop]);
+                                }
+                            }
+
+                            items.Add(instance);
                         }
+                        #endregion
 
-                        items.Add(instance);
+                        reader.Close();
+
+                        return items;
                     }
-
-                    reader.Close();
-
-                    return items;
                 }
             }
         }
 
+        public int Execute(string query, (string, object)[] paramters = null)
+        {
+            using (SqlConnection conn = new SqlConnection(_connection))
+            {
+                conn.Open();
+                using (SqlTransaction trans = conn.BeginTransaction())
+                {
+                    using (SqlCommand command = new SqlCommand(query, conn, trans))
+                    {
+                        if (paramters != null)
+                            foreach ((string, object) parameter in paramters)
+                                command.Parameters.AddWithValue(parameter.Item1, parameter.Item2);
 
+                        int rows = command.ExecuteNonQuery();
+                        trans.Commit();
+
+                        return rows;
+                    }
+                }
+            }
+        }
+
+        public async Task<int> ExecuteAsync(string query, (string, object)[] parameters = null)
+        {
+            using (SqlConnection conn = new SqlConnection(_connection))
+            {
+                await conn.OpenAsync();
+                using (SqlTransaction trans = conn.BeginTransaction())
+                {
+                    using (SqlCommand command = new SqlCommand(query, conn, trans))
+                    {
+                        if (parameters != null)
+                            foreach ((string, object) parameter in parameters)
+                                command.Parameters.AddWithValue(parameter.Item1, parameter.Item2);
+
+                        int rows = await command.ExecuteNonQueryAsync();
+                        trans.Commit();
+
+                        return rows;
+                    }
+                }
+            }
+        }
+
+        public void Log(string action, DateTime time, string user, string paramters)
+        {
+            Execute("INSERT INTO Activity VALUES (@action, @time, @user, @parameters)"
+                ,new (string, object)[] 
+                {
+                    ("@action", action),
+                    ("@time", time),
+                    ("@user", user),
+                    ("@parameters", paramters)
+                });
+        }
+
+        public async void LogAsync(string action, DateTime time, string user, string paramters)
+        {
+            await ExecuteAsync("INSERT INTO activity VALUES (@action, @time, @user, @parameters)"
+            , new(string, object)[]
+            {
+                            ("@action", action),
+                            ("@time", time),
+                            ("@user", user),
+                            ("@parameters", paramters)
+            });
+        }
+
+        public DataTable GetDataRaw(string query, (string, object)[] parameters = null)
+        {
+            using (SqlConnection conn = new SqlConnection(_connection))
+            {
+                conn.Open();
+                using (SqlTransaction trans = conn.BeginTransaction())
+                {
+                    using (SqlCommand command = new SqlCommand(query, conn, trans))
+                    {
+                        if (parameters != null)
+                            foreach ((string, object) parameter in parameters)
+                                command.Parameters.AddWithValue(parameter.Item1, parameter.Item2);
+
+                        SqlDataReader reader = command.ExecuteReader();
+                        DataTable table = new DataTable();
+                        table.Load(reader);
+                        return table;
+                    }
+                }
+
+            }
+        }
+
+        public async Task<DataTable> GetDataRawAsync(string query, (string, object)[] parameters = null)
+        {
+            using (SqlConnection conn = new SqlConnection(_connection))
+            {
+                await conn.OpenAsync();
+                using (SqlTransaction trans = conn.BeginTransaction())
+                {
+                    using (SqlCommand command = new SqlCommand(query, conn, trans))
+                    {
+                        if (parameters != null)
+                            foreach ((string, object) parameter in parameters)
+                                command.Parameters.AddWithValue(parameter.Item1, parameter.Item2);
+
+                        SqlDataReader reader = await command.ExecuteReaderAsync();
+                        DataTable table = new DataTable();
+                        table.Load(reader);
+                        return table;
+                    }
+                }
+
+            }
+        }
+
+        #region Utility
         /// <summary>
         /// Get's all the Properties, ignores attribute properties
         /// </summary>
@@ -104,5 +245,6 @@ namespace Arkiv.Data
             PropertyInfo[] info = item.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             return (from x in info select x.Name).ToArray();
         }
+        #endregion
     }
 }
