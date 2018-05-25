@@ -63,7 +63,7 @@ namespace Arkiv.Data
         /// <param name="parameters">the optional paramters</param>
         /// <seealso cref="GetDataRawAsync(string, (string, object)[])"/>
         /// <returns>the data which was returned in a datatable</returns>
-        DataTable GetDataRawAsync(string query, (string, object)[] parameters = null);
+        Task<DataTable> GetDataRawAsync(string query, (string, object)[] parameters = null);
 
         /// <summary>
         /// Writes a log entry in the activity table
