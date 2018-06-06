@@ -24,6 +24,8 @@
             <p>&copy; 2018 - Arkiv</p>
         </footer>
     </div>
+        
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 
     <environment include="Development">
         <script src="~/lib/jquery/dist/jquery.js"></script>
@@ -46,6 +48,9 @@
         <script src="~/js/site.min.js" asp-append-version="true"></script>
     </environment>
 
+
+    <link rel="stylesheet" type="text/css" href="~/lib/snackbar/dist/snackbar.min.css" />
+    <script src="~/lib/snackbar/dist/snackbar.min.js"></script>
     @RenderSection("Scripts", required: false)
 </body>
 </html>
