@@ -6,6 +6,7 @@ using Arkiv.Data;
 using Arkiv.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace Arkiv.Controllers
 {
@@ -13,16 +14,20 @@ namespace Arkiv.Controllers
     [Route("api/active")]
     public class ActiveController : Controller
     {
-        public ISqlData sql { get; set; }
-        public ActiveController(ISqlData _sql)
+        private ISqlData sql { get; set; }
+        private readonly ILogger logger;
+
+        public ActiveController(ISqlData _sql, ILogger<ActiveController> _logger)
         {
             sql = _sql;
+            logger = _logger;
         }
 
         [HttpGet]
         [Route("list")]
         public async Task<IActionResult> List()
         {
+            logger.LogInformation("User: {0} requested admin data", User.Identity.Name);
             IEnumerable<ActiveModel> models = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
             IEnumerable<ActivityLogModel> logs = await sql.SelectDataAsync<ActivityLogModel>("SELECT * FROM activity");
 
@@ -50,5 +55,7 @@ namespace Arkiv.Controllers
             else
                 return Json(null);
         }
+
+
     }
 }
