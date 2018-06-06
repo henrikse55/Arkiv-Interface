@@ -43,6 +43,7 @@
             $.post("/api/active/addEntry", this.model.ADR, (data) => {
                 if (data != null) {
                     this.groups.push(data);
+                    this.model.ADR = {};
                 }
             });
         },
