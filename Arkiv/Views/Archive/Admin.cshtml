@@ -1,6 +1,103 @@
 ﻿
 @{
-    ViewData["Title"] = "Admin";
+    ViewData["Title"] = "Admin Panel";
 }
 
-<h2>Admin Pannel</h2>
+
+<div class="container" id="adminpanel">
+    <div class="row justify-content-md-center">
+        @*<div class="col-md-2">
+            <div class="border border-dark rounded">
+                <h5 class="border border-dark border-top-0 border-left-0 border-right-0 text-center">Navigation?</h5>
+                <nav class="nav flex-column">
+                    <a class="nav-link" asp-action="Admin" asp-controller="Archive">Test</a>
+                </nav>
+            </div>
+        </div>*@
+        <div class="col-md-10">
+            <div class="text-center">
+                <h5>Active Directory References</h5>
+            </div>
+            <table id="ADRTable" class="table loading table-bordered">
+                <thead>
+                    <tr>
+                        <th scope="row">#</th>
+                        <th>Group</th>
+                        <th>DEVI</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <!-- #region loading placeholder-->
+
+                <tbody v-if="loading.groups">
+                    <tr><td></td></tr>
+                    <tr><td></td></tr>
+                    <tr><td></td></tr>
+                    <tr><td></td></tr>
+                    <tr><td></td></tr>
+                    <tr><td></td></tr>
+                </tbody>
+
+                <!-- #endregion -->
+                <tbody>
+                    <tr v-for="ac in groups">
+                        <td scope="row">{{ ac.id }}</td>
+                        <td>{{ ac.group }}</td>
+                        <td>{{ ac.devi }}</td>
+                        <td class="text-center"><span class="linked"><i class="fas fa-trash" v-on:click="DeleteADE(ac.id)"></i></span></td>
+                    </tr>
+                    <tr>
+                        <td scope="row"></td>
+                        <td><input class="form-control" type="text" placeholder="AD Group" v-model="model.ADR.group" /></td>
+                        <td><input class="form-control" type="text" placeholder="Access Area" v-model="model.ADR.devi" /></td>
+                        <td class="text-center"><button class="btn btn-outline-primary" v-on:click="AddADE"><i class="fas fa-plus"></i></button></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="text-muted" style="font-size: 12px">Use * to give access to all</p>
+        </div>
+    </div>
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="text-center">
+                <h5>Activity Log</h5>
+            </div>
+            <table id="logTable" class="table loading">
+                <thead>
+                    <tr>
+                        <th scope="row">#</th>
+                        <th>Action</th>
+                        <th>Time</th>
+                        <th>User</th>
+                        <th>Parameters</th>
+                    </tr>
+                </thead>
+                <!-- #region loading placeholder -->
+
+                <tbody v-if="loading.groups">
+                    <tr><td></td></tr>
+                    <tr><td></td></tr>
+                    <tr><td></td></tr>
+                    <tr><td></td></tr>
+                    <tr><td></td></tr>
+                    <tr><td></td></tr>
+                </tbody>
+
+                <!-- #endregion -->
+                <tbody>
+                    <tr v-for="log in logs">
+                        <td>{{ log.id }}</td>
+                        <td>{{ log.action }}</td>
+                        <td>{{ log.time }}</td>
+                        <td>{{ log.user }}</td>
+                        <td>TODO</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section scripts{
+    <script src="~/js/AdminPanel.js" asp-append-version="true"></script>
+}
