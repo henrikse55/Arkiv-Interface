@@ -1,17 +1,12 @@
 ﻿var admin = new Vue({
     el: "#adminpanel",
     data: {
-        //Some State Information
         loading: {
             groups: true,
             log: true,
         },
-
-        //Table information
         groups: [],
         logs: [],
-
-        //bound models
         model: {
             ADR: {}
         }
