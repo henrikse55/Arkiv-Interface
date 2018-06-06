@@ -4,24 +4,28 @@
     ViewData["Title"] = "Index";
 }
 
-<div class="container-fluid text-center">
+<div class="container-fluid text-center" id="IndexApp">
     <strong>Hello, @User.Identity.Name</strong>
     <hr />
     <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-2" style="position: sticky; top: 0; height: 100%;">
             <h1>Filter section</h1>
             <div class="table-bordered">
-                <select asp-items="Model.selectListItems" onchange="GetSelectedItem(this)" class="form-control dropdown"></select>
-                <hr />
-                <div class="table-bordered" id="FilterContainer"></div>
-                <input type="button" value="Apply Filters" id="ApplyButton" class="form-control" />
+                <select asp-items="Model.selectListItems" v-on:change="GetSelectedItem()" v-model="selectedItem" id="dropdownindex" class="form-control btn btn-dark dropdown">
+                    <option value="">--- Pick a filter ---</option>
+                </select>
+                <div class="table-bordered" id="FilterContainer" style="overflow-y: scroll; max-height: 800px;"></div>
+                <input type="button" value="Apply Filters" id="ApplyButton" class="form-control" v-on:click="PostFilters" />
+
+            </div>
+            <div class="progress" style="background-color: white;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="visibility: hidden; width: 100%" id="ProgressBar"></div>
             </div>
         </div>
-        <div class="col-md-8">
+        <div class="col-md-10">
             <h1>Table section</h1>
-            <div class="table-bordered">    
-                <table class="table">
-                </table>
+            <div class="table-bordered" id="TableContainer" style="border: 1px solid #ccc; overflow: auto;">
+                @await Html.PartialAsync("TablePartial", Model)
             </div>
         </div>
     </div>

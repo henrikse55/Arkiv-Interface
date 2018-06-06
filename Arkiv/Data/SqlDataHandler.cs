@@ -18,7 +18,7 @@ namespace Arkiv.Data
         {
             _connection = connection;
         }
-
+        
         public IEnumerable<T> SelectData<T>(string query, (string, object)[] parameters = null)
         {
             using (SqlConnection conn = new SqlConnection(_connection))
@@ -100,11 +100,22 @@ namespace Arkiv.Data
 
                                 if (converter.IsValid(reader[prop]))
                                 {
-                                    type.GetProperty(prop).SetValue(instance, converter.ConvertTo(reader[prop], type.GetProperty(prop).PropertyType));
+                                    try
+                                    {
+                                        if (!await reader.IsDBNullAsync(index))
+                                            type.GetProperty(prop).SetValue(instance, converter.ConvertTo(reader[prop], type.GetProperty(prop).PropertyType));
+                                    }
+                                    catch (Exception)
+                                    {
+
+                                    }
                                 }
                                 else
                                 {
-                                    type.GetProperty(prop).SetValue(instance, reader[prop]);
+                                    if(!await reader.IsDBNullAsync(index))
+                                    {
+                                        type.GetProperty(prop).SetValue(instance, reader[prop]);
+                                    }
                                 }
                             }
 
@@ -113,6 +124,7 @@ namespace Arkiv.Data
                         #endregion
 
                         reader.Close();
+                        trans.Commit();
 
                         return items;
                     }
