@@ -57,9 +57,7 @@ namespace Arkiv
 
             app.UseMvc(routes =>
             {
-                routes.MapRoute(
-                    name: "default",
-                    template: "{controller=Archive}/{action=Index}/{id?}");
+                routes.MapRoute(name: "default", template: "{controller=Archive}/{action=Index}/{id?}");
             });
         }
     }

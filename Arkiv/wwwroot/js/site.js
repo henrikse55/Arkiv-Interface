@@ -11,7 +11,18 @@
                 $.post('/Archive/GetFilterPartial/', { SelectedColumn: Item }, (data) => { $('#FilterContainer').append(data) })
             }
         },
-        PostFilters: function ()     {
+        PostFilters: function () {
+            if($('.FilterGroup').length == 0) {
+                Snackbar.show({
+                    text: 'The system was not able to find any matching record(s)!',
+                    pos: 'top-left',
+                    backgroundColor: '#e60000',
+                    showAction: false
+                });
+
+                return;
+            }
+
             $('#ApplyButton').attr('disabled', true); //Disable ApplyButton while the data is being processed
             $('#ProgressBar').css({ 'visibility': 'visible', 'width': '100%' });
 
