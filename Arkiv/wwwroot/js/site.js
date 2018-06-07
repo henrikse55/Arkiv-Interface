@@ -1,15 +1,13 @@
 ﻿var IndexApp = new Vue({
     el: '#IndexApp',
     data: {
-        selectedItem: ''
+        selectedItem: '',
+        filters: [],
     },
     methods: {
         GetSelectedItem: function () {
             let Item = this.$data.selectedItem;
-            
-            if (Item !== '') {
-                $.post('/Archive/GetFilterPartial/', { SelectedColumn: Item }, (data) => { $('#FilterContainer').append(data) })
-            }
+            this.filters.push(Item);
         },
         PostFilters: function ()     {
             $('#ApplyButton').attr('disabled', true); //Disable ApplyButton while the data is being processed
@@ -113,27 +111,41 @@
     }
 });
 
-//Used in: Archive/FilterPartial
-function RemoveFilter(FilterName)
-{
-    $(FilterName).remove(); //Remove specified element
-}
+Vue.component('filter-template', {
+    props: ['name'],
+    data: function() {
+        return {
+            option: 'Single'
+        }
+    },
+    template: '#filter-template',
+    methods: {
+        RemoveFilter: function (FilterName) {
+            $("#FilterPartial" + FilterName).remove(); //Remove specified element
+            let filters = [];
+            for (let i = 0; i < IndexApp.filters.length; i++)
+            {
+                if (IndexApp.filters[i] != FilterName)
+                    filters.push(IndexApp.filters[i]);
+            }
 
-//Used in: Archive/FilterPartial
-function ChangeTextInputType(option, col)
-{
-    $('#TextInputContainer' + col).html('');
+            IndexApp.filters = filters;
+        },
 
-    let single = `<input type="text" class="form-control FilterGroup" id="Filtering_${col}" />`;
-    let range = `<input type="text" class="form-control FilterGroup" id="FilteringFrom_${col}" /> - <input type="text" class="form-control FilterGroup" id="FilteringTo_${col}" />`;
+        ChangeTextInputType: function(col) {
+            $('#TextInputContainer' + col).html('');
 
-    switch (option.value)
-    {
-        case 'Single':
-            $('#TextInputContainer' + col).html(single);
-            break;
-        case 'Range':
-            $('#TextInputContainer' + col).html(range);
-            break;
+            let single = `<input type="text" class="form-control FilterGroup" id="Filtering_${col}" />`;
+            let range = `<input type="text" class="form-control FilterGroup" id="FilteringFrom_${col}" /> - <input type="text" class="form-control FilterGroup" id="FilteringTo_${col}" />`;
+
+            switch (this.option) {
+                case 'Single':
+                    $('#TextInputContainer' + col).html(single);
+                    break;
+                case 'Range':
+                    $('#TextInputContainer' + col).html(range);
+                    break;
+            }
+        }
     }
-}
+});
