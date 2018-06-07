@@ -27,7 +27,9 @@
         <div class="col-md-10">
             <h1>Table section</h1>
             <div id="TableContainer" style="border: 1px solid #ccc; overflow: auto;">
-                @await Html.PartialAsync("TablePartial", Model)
+                <div id="loader">
+                    <i class="fas fa-spinner fa-pulse fa-8x"></i>
+                </div>
             </div>
         </div>
     </div>
