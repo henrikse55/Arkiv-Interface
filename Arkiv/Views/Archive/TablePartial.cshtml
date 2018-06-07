@@ -12,7 +12,7 @@
         {
             Type type = typeof(ArchiveDataModel);
             var props = type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-
+            
             <tr>
                 @foreach (var prop in props)
                 {
