@@ -1,4 +1,4 @@
-﻿<table class="table-sm table-hover">
+﻿<table class="table table-bordered table-sm table-hover">
     <thead class="thead-dark">
         <tr>
             @foreach (SelectListItem item in Model.selectListItems)
@@ -16,7 +16,8 @@
             <tr>
                 @foreach (var prop in props)
                 {
-                    <th>@prop.GetValue(data)</th>
+                    var value = @prop.GetValue(data);
+                    <th style="white-space: normal;">@value</th>
                 }
             </tr>
         }

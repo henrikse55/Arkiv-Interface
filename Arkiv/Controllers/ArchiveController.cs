@@ -9,6 +9,8 @@ using Arkiv.Models;
 using System.Linq;
 using Arkiv.Data;
 using System;
+using System.Net.Http;
+using System.Net.Http.Headers;
 
 namespace Arkiv.Controllers
 {
@@ -37,9 +39,35 @@ namespace Arkiv.Controllers
                 list.Add(new SelectListItem { Value = item.COLUMN_NAME, Text = item.COLUMN_NAME });
             }
 
-            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>("SELECT TOP 50 * FROM arkiv");
+            //IEnumerable<ActiveModel> models = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
+            //WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            //var groups = identity.Groups.Select(x =>
+            //{
+            //    try
+            //    {
+            //        return x.Translate(typeof(NTAccount)).Value;
+            //    }
+            //    catch (Exception e) { }
+            //    return null;
+            //});
+            //var sorted = (from x in models where groups.Any(y => y == x.Group.Replace("\\\\", "\\")) select x.DEVI);
 
-            return View(new ArchiveJoinedModel() { selectListItems = list.AsEnumerable(), data = data });
+            //string WhereClause = " WHERE ";
+            //List<(string, object)> ParamList = new List<(string, object)>();
+
+            //for (int i = 0; i < sorted.Count(); i++)
+            //{
+            //    WhereClause += "DEVI = @DEVI" + i;
+            //    if(i != sorted.Count() -1)
+            //    {
+            //        WhereClause += " AND ";
+            //    }
+            //    ParamList.Add(("@DEVI" + i, sorted.ElementAt(i)));
+            //}
+
+            //IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>("SELECT TOP 50 * FROM arkiv" + WhereClause, ParamList.ToArray());
+
+            return View(new ArchiveJoinedModel() { selectListItems = list.AsEnumerable(), data = null });
         }
 
         [HttpPost]
@@ -54,9 +82,32 @@ namespace Arkiv.Controllers
             {
                 list.Add(new SelectListItem { Value = item.COLUMN_NAME, Text = item.COLUMN_NAME });
             }
-                
+
+            #region Active Directory account cheching
+            IEnumerable<ActiveModel> models = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
+            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            var groups = identity.Groups.Select(x =>
+            {
+                try
+                {
+                    return x.Translate(typeof(NTAccount)).Value;
+                }
+                catch (Exception e) { }
+                return null;
+            });
+            var sorted = (from x in models where groups.Any(y => y == x.Group.Replace("\\\\", "\\")) select x.DEVI);
+
             string WhereClause = "WHERE ";
             List<(string, object)> ParamList = new List<(string, object)>();
+
+            for (int i = 0; i < sorted.Count(); i++)
+            {
+                WhereClause += "DEVI = @DEVI" + i + "";
+                if(i != sorted.Count() - 1)
+                    WhereClause += " AND ";
+                ParamList.Add(("@DEVI" + i, sorted.ElementAt(i)));
+            } 
+            #endregion
 
             //Make sure Filters is not empty
             if (Filters.Count() > 0)
@@ -103,12 +154,8 @@ namespace Arkiv.Controllers
                     }
                 }
             }
-            else
-            {
-                WhereClause = string.Empty; //If Filters is empty, make WhereClause empty
-            }
 
-            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>("SELECT * FROM arkiv " + WhereClause, ParamList.ToArray());
+            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>("SELECT " + (Filters.Count() == 0 ? "TOP 50" : "") + " * FROM arkiv " + WhereClause, ParamList.ToArray());
 
             //If there is no results, return the json object, "No Match"
             if (data.Count() == 0)

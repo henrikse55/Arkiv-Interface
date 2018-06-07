@@ -9,12 +9,14 @@
     <hr />
     <div class="row">
         <div class="col-md-2" style="position: sticky; top: 0; height: 100%;">
-            <h1>Filter section</h1>
+            <h2>Filter section</h2>
             <div class="table-bordered">
                 <select asp-items="Model.selectListItems" v-on:change="GetSelectedItem()" v-model="selectedItem" id="dropdownindex" class="form-control btn btn-dark dropdown">
                     <option value="">--- Pick a filter ---</option>
                 </select>
-                <div class="table-bordered" id="FilterContainer" style="overflow-y: scroll; max-height: 800px;"></div>
+                <div class="table-bordered" id="FilterContainer" style="overflow-y: scroll; max-height: 800px;">
+                    <filter-template v-for="item in filters" :key="item" v-bind:name="item"></filter-template>
+                </div>
                 <input type="button" value="Apply Filters" id="ApplyButton" class="form-control" v-on:click="PostFilters" />
 
             </div>
@@ -24,9 +26,37 @@
         </div>
         <div class="col-md-10">
             <h1>Table section</h1>
-            <div class="table-bordered" id="TableContainer" style="overflow: auto;">
-                @await Html.PartialAsync("TablePartial", Model)
+            <div id="TableContainer" style="border: 1px solid #ccc; overflow: auto;">
+                <div id="loader">
+                    <i class="fas fa-spinner fa-pulse fa-8x"></i>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script type="text/x-template" id="filter-template">
+    <div :id="'FilterPartial' + name">
+        <p>
+            <div class="container">
+                <a class="btn btn-primary btn-block" data-toggle="collapse" :href="'#CollapseFilter'  + name ">{{ name }}</a>
+            </div>
+        </p>
+        <div class="collapse" :id="'CollapseFilter' + name">
+            <div class="card">
+                <div class="card-body">
+                    <select v-model="option" class="form-control" v-on:change="ChangeTextInputType(name)">
+                        <option value="Single">Single</option>
+                        <option value="Range">Range</option>
+                    </select>
+                    <br />
+                    <div :id="'TextInputContainer' + name">
+                        <input type="text" class="form-control FilterGroup" :id="'Filtering_' + name " />
+                    </div>
+                    <hr />
+                    <input type="button" class="btn btn-danger form-control" value="Remove" v-on:click="RemoveFilter(name)" />
+                </div>
+            </div>
+        </div>
+    </div>
+</script>
