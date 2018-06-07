@@ -5,6 +5,12 @@
         filters: [],
     },
     methods: {
+        ready: function () {
+            $.post('/Archive/GetTable/', (data) => {
+                $('#TableContainer').html(data);
+                $('#loader').addClass("hidden");
+            });
+        },
         GetSelectedItem: function () {
             let Item = this.$data.selectedItem;
             this.filters.push(Item);
@@ -149,3 +155,5 @@ Vue.component('filter-template', {
         }
     }
 });
+
+IndexApp.ready();
