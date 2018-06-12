@@ -263,9 +263,20 @@ namespace Arkiv.Controllers
         [HttpGet]
         public IActionResult Admin()
         {
-            if(User.IsInRole("Administrators") || User.Identity.Name.Contains("henr054a"))
+            foreach(string group in config.AdminGroups)
             {
-                return View();
+                if(User.IsInRole(group))
+                {
+                    return View();
+                }
+            }
+
+            foreach(string user in config.AdminUsers)
+            {
+                if(User.Identity.Name.Contains(user))
+                {
+                    return View();
+                }
             }
 
             return Redirect("Index");
