@@ -17,7 +17,30 @@
                 @foreach (var prop in props)
                 {
                     var value = @prop.GetValue(data);
-                    <th style="white-space: normal;">@value</th>
+
+                    if (prop.Name == "PATH")
+                    {
+                        var items = ((string)value).Split('/');
+                        value = items[items.Length - 1];
+                        <th>
+                            <div class="btn-group-sm btn-group-vertical">
+                                <a target="_blank" href="/pdf/@value" class="btn btn-primary">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </a>
+                                <a target="_blank" href="download/@value" class="btn btn-info">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                <a class="btn btn-outline-secondary">
+                                    <i class="fas fa-envelope"></i>
+                                </a>
+                            </div>
+                        </th>
+                    }
+
+                    if(prop.Name != "PATH")
+                    {
+                        <th style="white-space: normal;">@value</th>
+                    }
                 }
             </tr>
         }

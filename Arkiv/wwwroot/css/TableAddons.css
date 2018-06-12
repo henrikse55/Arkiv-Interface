@@ -1,7 +1,6 @@
 ﻿table thead,
 table tbody {
-    display: table;
-    width: 100%
+
 }
 
 table.loading tbody {

@@ -33,6 +33,7 @@ namespace Arkiv
                 AdminGroups = Configuration.GetSection("AdminPanel:Groups").AsEnumerable().Where(x => !string.IsNullOrEmpty(x.Value)).Select(x => x.Value).ToArray(),
                 AdminUsers = Configuration.GetSection("AdminPanel:Users").AsEnumerable().Where(x => !string.IsNullOrEmpty(x.Value)).Select(x => x.Value).ToArray(),
                 ActivityLogging = Configuration["Logging:ActivityLogging"] == "true",
+                PdfPath = Configuration["PdfPath"],
             };
 
             services.AddTransient<ISqlData>(sqlFactory)

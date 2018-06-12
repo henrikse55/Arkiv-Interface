@@ -91,35 +91,39 @@ namespace Arkiv.Data
                         List<T> items = new List<T>();
                         while (reader.Read())
                         {
-                            T instance = (T)Activator.CreateInstance(type);
-                            foreach (string prop in properties)
+                            T item = await Task.Run(async () =>
                             {
-                                int index = reader.GetOrdinal(prop);
-                                Type dataType = reader.GetFieldType(index);
-                                TypeConverter converter = TypeDescriptor.GetConverter(dataType);
-
-                                if (converter.IsValid(reader[prop]))
+                                T instance = (T)Activator.CreateInstance(type);
+                                foreach (string prop in properties)
                                 {
-                                    try
-                                    {
-                                        if (!await reader.IsDBNullAsync(index))
-                                            type.GetProperty(prop).SetValue(instance, converter.ConvertTo(reader[prop], type.GetProperty(prop).PropertyType));
-                                    }
-                                    catch (Exception)
-                                    {
+                                    int index = reader.GetOrdinal(prop);
+                                    Type dataType = reader.GetFieldType(index);
+                                    TypeConverter converter = TypeDescriptor.GetConverter(dataType);
 
+                                    if (converter.IsValid(reader[prop]))
+                                    {
+                                        try
+                                        {
+                                            if (!await reader.IsDBNullAsync(index))
+                                                type.GetProperty(prop).SetValue(instance, converter.ConvertTo(reader[prop], type.GetProperty(prop).PropertyType));
+                                        }
+                                        catch (Exception)
+                                        {
+
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if(!await reader.IsDBNullAsync(index))
+                                        {
+                                            type.GetProperty(prop).SetValue(instance, reader[prop]);
+                                        }
                                     }
                                 }
-                                else
-                                {
-                                    if(!await reader.IsDBNullAsync(index))
-                                    {
-                                        type.GetProperty(prop).SetValue(instance, reader[prop]);
-                                    }
-                                }
-                            }
+                                return instance;
+                            });
 
-                            items.Add(instance);
+                            items.Add(item);
                         }
                         #endregion
 
