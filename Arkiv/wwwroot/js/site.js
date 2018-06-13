@@ -1,8 +1,15 @@
 ﻿var IndexApp = new Vue({
     el: '#IndexApp',
     data: {
+        tableLoader: true,
         selectedItem: '',
         filters: [],
+        pages: 0,
+        page: {
+            pages: 0,
+            numbers: [],
+            current: 0
+        },
         order: 'Ascending',
         colName: ''
     },
@@ -14,7 +21,9 @@
                 //data: { Filters: [{ Name: 'NONE', Type: 'Single', Value: { One: '5000', Two: null }}], OrderData: { Order: 'Ascending', Column: '' } },
                 success: (data) => {
                     $('#TableContainer').html(data);
-                    $('#loader').addClass("hidden");
+                    this.tableLoader = false;
+                    this.page.pages = parseInt($("#pages").html());
+                    this.CalcPages();
                 },
                 error: (jqXHR, exception) => {
                     $('#TableContainer').html(`<h1 style="color: red;">${exception} - ${jqXHR.status}</h1>`); //If an error occures, display an error message
@@ -26,11 +35,18 @@
             this.filters.push(Item);
         },
         PostFilters: function () {
-            if($('.FilterGroup').length == 0) {
-                Snack('The system was not able to find any matching record(s)!', '#e60000');
+            $('#TableContainer').html('');
+            this.tableLoader = true;
+            //if($('.FilterGroup').length == 0) {
+            //    Snackbar.show({
+            //        text: 'The system was not able to find any matching record(s)!',
+            //        pos: 'top-left',
+            //        backgroundColor: '#e60000',
+            //        showAction: false
+            //    });
 
-                return;
-            }
+            //    return;
+            //}
 
             $('#ApplyButton').attr('disabled', true); //Disable ApplyButton while the data is being processed
             $('#ProgressBar').css({ 'visibility': 'visible', 'width': '100%' });
@@ -121,13 +137,13 @@
                 }
             }
 
-            console.log(FinalFilters);
-            console.log({ Order: this.order, Column: this.colName });
+            //console.log(FinalFilters);
+            //console.log({ Order: this.order, Column: this.colName });
 
             $.ajax({
                 type: 'POST',
                 url: '/Archive/GetTable/',
-                data: { Filters: FinalFilters, OrderData: { Order: this.order, Column: this.colName }},
+                data: { Filters: FinalFilters, OrderData: { Order: this.order, Column: this.colName, pages: this.page.current+1 }},
                 success: (data) => {
                     if (data !== 'No Match') {
                         $('#TableContainer').html('');
@@ -143,11 +159,34 @@
                         $('#ApplyButton').removeAttr('disabled'); //Re-enable the Apply button
                         $('#ProgressBar').css({ 'visibility': 'hidden', 'width': '100%' });
                     }
+                    this.tableLoader = false;
                 },
                 error: (jqXHR, exception) => {
+                    this.tableLoader = false;
                     $('#TableContainer').html(`<h1 style="color: red;">${exception} - ${jqXHR.status}</h1>`); //If an error occures, display an error message
                 }
             });
+        },
+        CalcPages: function ()
+        {
+            this.page.numbers = [];
+            let start = (this.page.current - 5);
+            for (let i = start >= 0 ? start : 0; i < this.page.current; i++)
+            {
+                this.page.numbers.push({item: i, active: ""});
+            }
+
+            this.page.numbers.push({ item: this.page.current, active: "active" });
+            for (let i = this.page.current + 1; i < this.page.current + 6; i++) {
+                if (i <= this.page.pages)
+                    this.page.numbers.push({ item: i, active: "" });
+            }
+        },
+        PageChange: function (page)
+        {
+            this.page.current = page;
+            this.CalcPages();
+            this.PostFilters();
         }
     }
 });

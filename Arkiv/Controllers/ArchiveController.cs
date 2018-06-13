@@ -84,13 +84,14 @@ namespace Arkiv.Controllers
             string WhereClause = "WHERE ";
             List<(string, object)> ParamList = new List<(string, object)>();
 
-            for (int i = 0; i < sorted.Count(); i++)
+            if (sorted.Count(x => x.Contains('*')) == 0)
             {
-                WhereClause += "DEVI = @DEVI" + i + "";
-                if(i != sorted.Count() - 1)
-                    WhereClause += " AND ";
-                ParamList.Add(("@DEVI" + i, sorted.ElementAt(i)));
-            } 
+                for (int i = 0; i < sorted.Count(); i++)
+                {
+                    WhereClause += "DEVI = @DEVI" + i;
+                    ParamList.Add(("@DEVI" + i, sorted.ElementAt(i)));
+                } 
+            }
             #endregion
 
             if (Filters.Count() > 0)
@@ -153,7 +154,33 @@ namespace Arkiv.Controllers
                 }
             }
 
-            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>("SELECT " + (Filters.Count() == 0 ? "TOP 50" : "") + " * FROM arkiv " + WhereClause + OrderClause, ParamList.ToArray());
+            if (pages == 0)
+                pages = 1;
+
+            int max = pages * 50;
+            int min = (max - 50 >= 0 ? max-50 : 0);
+
+            string query = @"SELECT 
+                           [Id], [STAMP], [FILTYP], [MODE],
+                           [DOCTYP], [DOCDATE], [DOCNO], [ORNO],
+                           [IVDT], [IVNO], [CUNO], [CUNM],
+                           [PYNO], [ORDT], [DUDT], [DLDT],
+                           [YREF], [CUOR], [CUDT], [OREF],
+                           [DLIX], [ADID], [ADNM], [ORTO],
+                           [CUCD], [CONO], [FACI], [DEVI],
+                           [WHLO], [PRTDATE], [MVXPRT], [TOMAIL],
+                           [CCMAIL], [SUNM], [PUON], [PUDT], [PATH]
+                           FROM(
+                               SELECT *, ROW_NUMBER() OVER(ORDER BY Id) AS RowNumber
+                           
+                               FROM arkiv {where}
+                           ) as t
+                           WHERE t.RowNumber between {min} and {max}".Replace("{min}", min.ToString()).Replace("{max}", max.ToString()).Replace("{where}", WhereClause);
+
+            string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " +WhereClause;
+
+            int pageCount = (int)(await sql.GetDataRawAsync(countQuery, ParamList.ToArray())).Rows[0][0];
+            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>(query, ParamList.ToArray());
 
             //If there is no results, return the json object, "No Match"
             if (data.Count() == 0)
@@ -161,7 +188,7 @@ namespace Arkiv.Controllers
                 return Json("No Match");
             }
 
-            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = data });
+            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = list.AsEnumerable(), data = data, pages = pageCount });
         }
 
         [HttpPost]
@@ -169,6 +196,63 @@ namespace Arkiv.Controllers
         {
             return PartialView("FilterPartial", SelectedColumn);
         }
+        #endregion
+
+        #region PDF
+        [HttpGet()]
+        [Route("/pdf/{doc}")]
+        public async Task<IActionResult> GetPdf(string doc)
+        {
+            MemoryStream item = await GetFileStream(doc);
+            if (item != null)
+            {
+                sql.LogAsync("PDF Load", DateTime.Now, User.Identity.Name, doc);
+                return new FileStreamResult(item, "application/pdf");
+            }
+            else
+            {
+                sql.LogAsync("PDF Load Failed", DateTime.Now, User.Identity.Name, doc);
+                return NotFound();
+            }
+        }
+
+        [HttpGet()]
+        [Route("/download/{doc}")]
+        public async Task<IActionResult> Download(string doc)
+        {
+            MemoryStream item = await GetFileStream(doc);
+            if (item != null)
+            {
+                sql.LogAsync("PDF Download", DateTime.Now, User.Identity.Name, doc);
+                return new FileStreamResult(item, "application/octet-stream");
+            }
+            else
+            {
+                sql.LogAsync("PDF Download Failed", DateTime.Now, User.Identity.Name, doc);
+                return NotFound();
+            }
+        }
+
+        private async Task<MemoryStream> GetFileStream(string file)
+        {
+            var dir = Directory.EnumerateFiles(config.PdfPath);
+            var item = dir.Where(x => x.Contains(file)).Select(x => x);
+            if (item.Count() > 0)
+            {
+                using (var filestream = new FileStream(item.First(), FileMode.Open, FileAccess.Read, FileShare.Inheritable))
+                {
+                    MemoryStream s = new MemoryStream();
+                    await filestream.CopyToAsync(s);
+                    s.Position = 0;
+                    return s;
+                }
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         #endregion
 
         #region Test
@@ -197,9 +281,20 @@ namespace Arkiv.Controllers
         [HttpGet]
         public IActionResult Admin()
         {
-            if(User.IsInRole("Administrators") || User.Identity.Name.Contains("henr054a"))
+            foreach(string group in config.AdminGroups)
             {
-                return View();
+                if(User.IsInRole(group))
+                {
+                    return View();
+                }
+            }
+
+            foreach(string user in config.AdminUsers)
+            {
+                if(User.Identity.Name.Contains(user))
+                {
+                    return View();
+                }
             }
 
             return Redirect("Index");

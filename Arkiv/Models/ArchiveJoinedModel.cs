@@ -9,6 +9,8 @@ namespace Arkiv.Models
 
         public IEnumerable<ArchiveDataModel> data { get; set; }
 
+        public int pages { get; internal set; }
+
         public bool adminPanelAccess { get; set; }
     }
 }

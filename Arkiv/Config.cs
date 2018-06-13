@@ -11,5 +11,6 @@ namespace Arkiv
         public string[] AdminUsers { get; set; }
         public string[] AdminGroups { get; set; }
         public bool ActivityLogging { get; set; }
+        public string PdfPath { get; internal set; }
     }
 }
