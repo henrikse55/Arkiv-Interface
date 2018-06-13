@@ -5,7 +5,15 @@
 }
 
 <div class="container-fluid text-center" id="IndexApp">
-    <strong>Hello, @User.Identity.Name</strong>
+    <div class="row">
+        <div class="col-sm-6">
+            <strong>Hello, @User.Identity.Name</strong>
+        </div>
+        <div class="col-sm-6">
+            @if (Model.adminPanelAccess) { <a asp-controller="Archive" asp-action="Admin">Admin Panel</a> }
+        </div>
+    </div>
+
     <hr />
     <div class="row">
         <div class="col-md-2" style="position: sticky; top: 0; height: 100%;">
@@ -42,9 +50,16 @@
                 <a class="btn btn-primary btn-block" data-toggle="collapse" :href="'#CollapseFilter'  + name ">{{ name }}</a>
             </div>
         </p>
+        
         <div class="collapse" :id="'CollapseFilter' + name">
             <div class="card">
                 <div class="card-body">
+                    <input type="button" value="Add Asc/Desc" v-on:click="AddAsDeOptions(name)" class="btn btn-success" />
+                    <input type="button" value="Remove Asc/Desc" v-on:click="RemoveAsDeOptions" class="btn btn-danger" />
+                    <div :id="'OrderSelectContainer' + name">
+                        <order-select v-if="orderShow"></order-select>
+                    </div>
+                    <br />
                     <select v-model="option" class="form-control" v-on:change="ChangeTextInputType(name)">
                         <option value="Single">Single</option>
                         <option value="Range">Range</option>

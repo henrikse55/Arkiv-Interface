@@ -5,6 +5,7 @@
         public string Name { get; set; }
         public string Type { get; set; }
         public FilterValueModel Value { get; set; }
+
     }
 
     public class FilterValueModel

@@ -3,12 +3,22 @@
     data: {
         selectedItem: '',
         filters: [],
+        order: 'Ascending',
+        colName: ''
     },
     methods: {
         ready: function () {
-            $.post('/Archive/GetTable/', (data) => {
-                $('#TableContainer').html(data);
-                $('#loader').addClass("hidden");
+            $.ajax({
+                type: 'POST',
+                url: '/Archive/GetTable/',
+                //data: { Filters: [{ Name: 'NONE', Type: 'Single', Value: { One: '5000', Two: null }}], OrderData: { Order: 'Ascending', Column: '' } },
+                success: (data) => {
+                    $('#TableContainer').html(data);
+                    $('#loader').addClass("hidden");
+                },
+                error: (jqXHR, exception) => {
+                    $('#TableContainer').html(`<h1 style="color: red;">${exception} - ${jqXHR.status}</h1>`); //If an error occures, display an error message
+                }
             });
         },
         GetSelectedItem: function () {
@@ -17,12 +27,7 @@
         },
         PostFilters: function () {
             if($('.FilterGroup').length == 0) {
-                Snackbar.show({
-                    text: 'The system was not able to find any matching record(s)!',
-                    pos: 'top-left',
-                    backgroundColor: '#e60000',
-                    showAction: false
-                });
+                Snack('The system was not able to find any matching record(s)!', '#e60000');
 
                 return;
             }
@@ -32,9 +37,23 @@
 
             let Filters = [];
 
+            let ValidationError = false; //Indicates if an element contains a validation error
+
             //Iterate through each element in the FilterGroup class
             $('.FilterGroup').map((i, e) => {
                 let col = e.id.split('_');
+
+                //Value validation of current element
+                if (e.value == '') {
+                    Snack('Validation error: ' + col[1] + ' can not be empty!', '#e60000');
+                    $('#ApplyButton').removeAttr('disabled'); //Re-enable the Apply button
+                    $('#ProgressBar').css({ 'visibility': 'hidden', 'width': '100%' });
+
+                    ValidationError = true;
+                    
+                    return;
+                }
+
 
                 //Check if the id FilteringFrom_ exists. If it does,
                 //the current element is part of a range filter.
@@ -56,6 +75,11 @@
                     });
                 }
             });
+
+            //If a validation error has been found, then exit method
+            if (ValidationError) {
+                return;
+            }
 
             let FinalFilters = [];
 
@@ -98,30 +122,30 @@
             }
 
             console.log(FinalFilters);
+            console.log({ Order: this.order, Column: this.colName });
 
-            $.post('/Archive/GetTable/', { Filters: FinalFilters }, (data) => {
-                if (data !== 'No Match') {
-                    $('#TableContainer').html('');
-                    $('#TableContainer').html(data);
+            $.ajax({
+                type: 'POST',
+                url: '/Archive/GetTable/',
+                data: { Filters: FinalFilters, OrderData: { Order: this.order, Column: this.colName }},
+                success: (data) => {
+                    if (data !== 'No Match') {
+                        $('#TableContainer').html('');
+                        $('#TableContainer').html(data);
 
-                    Snackbar.show({
-                        text: 'The requested record(s) was found successfuly!',
-                        pos: 'top-left',
-                        backgroundColor: '#33cc33',
-                        showAction: false
-                    });
-                    $('#ApplyButton').removeAttr('disabled'); //Re-enable the Apply button
-                    $('#ProgressBar').css({ 'visibility': 'hidden', 'width': '100%' });
-                } else {
-                    Snackbar.show({
-                        text: 'The system was not able to find any matching record(s)!',
-                        pos: 'top-left',
-                        backgroundColor: '#e60000',
-                        showAction: false
-                    });
+                        Snack('The requested record(s) was found successfuly!', '#33cc33');
 
-                    $('#ApplyButton').removeAttr('disabled'); //Re-enable the Apply button
-                    $('#ProgressBar').css({ 'visibility': 'hidden', 'width': '100%' });
+                        $('#ApplyButton').removeAttr('disabled'); //Re-enable the Apply button
+                        $('#ProgressBar').css({ 'visibility': 'hidden', 'width': '100%' });
+                    } else {
+                        Snack('The system was not able to find any matching record(s)!', '#e60000');
+
+                        $('#ApplyButton').removeAttr('disabled'); //Re-enable the Apply button
+                        $('#ProgressBar').css({ 'visibility': 'hidden', 'width': '100%' });
+                    }
+                },
+                error: (jqXHR, exception) => {
+                    $('#TableContainer').html(`<h1 style="color: red;">${exception} - ${jqXHR.status}</h1>`); //If an error occures, display an error message
                 }
             });
         }
@@ -132,7 +156,10 @@ Vue.component('filter-template', {
     props: ['name'],
     data: function() {
         return {
-            option: 'Single'
+            option: 'Single',
+            orderShow: false,
+            orderSelect: ""
+
         }
     },
     template: '#filter-template',
@@ -148,7 +175,6 @@ Vue.component('filter-template', {
 
             IndexApp.filters = filters;
         },
-
         ChangeTextInputType: function(col) {
             $('#TextInputContainer' + col).html('');
 
@@ -163,8 +189,46 @@ Vue.component('filter-template', {
                     $('#TextInputContainer' + col).html(range);
                     break;
             }
+        },
+        AddAsDeOptions: function (name) {
+            if (this.orderSelect == "" && $('#OrderSelect').length == 0) {
+                this.orderShow = true;
+                this.orderSelect = name;
+                IndexApp.colName = name;
+            }
+        },
+        RemoveAsDeOptions: function () {
+            this.orderShow = false;
+            this.orderSelect = "";
+            IndexApp.colName = '';
+        },
+    }
+});
+
+Vue.component('order-select', {
+    data: function() {
+        return {
+            order: 'Ascending'
+        }
+    },
+    template: '<select v-model="order" class="form-control" id="OrderSelect"><option value="Ascending">Ascending</option><option value="Descending">Descending</option></select>',
+    watch: {
+        order: {
+            handler: function () {
+                IndexApp.order = this.order;
+            }
         }
     }
 });
 
 IndexApp.ready();
+
+
+function Snack(message, color) {
+    Snackbar.show({
+        text: message,
+        pos: 'top-left',
+        backgroundColor: color,
+        showAction: false
+    });
+}

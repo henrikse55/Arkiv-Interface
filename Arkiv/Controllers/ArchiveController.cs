@@ -9,8 +9,6 @@ using Arkiv.Models;
 using System.Linq;
 using Arkiv.Data;
 using System;
-using System.Net.Http;
-using System.Net.Http.Headers;
 
 namespace Arkiv.Controllers
 {
@@ -19,10 +17,12 @@ namespace Arkiv.Controllers
     {
         #region Constructor
         private ISqlData sql;
+        private Config config;
 
-        public ArchiveController(ISqlData _data)
+        public ArchiveController(ISqlData _data, Config _config)
         {
             sql = _data;
+            config = _config;
         }
         #endregion
 
@@ -30,57 +30,41 @@ namespace Arkiv.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            IEnumerable<ColumnNameModel> model = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
+            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
 
-            List<SelectListItem> list = new List<SelectListItem>();
+            List<SelectListItem> ColumnNamesSelectList = new List<SelectListItem>();
             
-            foreach(ColumnNameModel item in model)
+            foreach(ColumnNameModel column in ColumnNames)
             {
-                list.Add(new SelectListItem { Value = item.COLUMN_NAME, Text = item.COLUMN_NAME });
+                ColumnNamesSelectList.Add(new SelectListItem { Value = column.COLUMN_NAME, Text = column.COLUMN_NAME });
             }
 
-            //IEnumerable<ActiveModel> models = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
-            //WindowsIdentity identity = WindowsIdentity.GetCurrent();
-            //var groups = identity.Groups.Select(x =>
-            //{
-            //    try
-            //    {
-            //        return x.Translate(typeof(NTAccount)).Value;
-            //    }
-            //    catch (Exception e) { }
-            //    return null;
-            //});
-            //var sorted = (from x in models where groups.Any(y => y == x.Group.Replace("\\\\", "\\")) select x.DEVI);
+            //This section checks if the current user has access to the admin panel
+            bool AdminPanelAccess = false;
 
-            //string WhereClause = " WHERE ";
-            //List<(string, object)> ParamList = new List<(string, object)>();
+            config.AdminGroups.ToList().ForEach(group => {
+                if (User.IsInRole(group)) AdminPanelAccess = true;
+            });
 
-            //for (int i = 0; i < sorted.Count(); i++)
-            //{
-            //    WhereClause += "DEVI = @DEVI" + i;
-            //    if(i != sorted.Count() -1)
-            //    {
-            //        WhereClause += " AND ";
-            //    }
-            //    ParamList.Add(("@DEVI" + i, sorted.ElementAt(i)));
-            //}
+            config.AdminUsers.ToList().ForEach(user => {
+                if (User.Identity.Name.Contains(user)) AdminPanelAccess = true;
+            });
 
-            //IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>("SELECT TOP 50 * FROM arkiv" + WhereClause, ParamList.ToArray());
-
-            return View(new ArchiveJoinedModel() { selectListItems = list.AsEnumerable(), data = null });
+            return View(new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = null, adminPanelAccess = AdminPanelAccess });
         }
 
         [HttpPost]
-        public async Task<IActionResult> GetTable(FilterModel[] Filters)
+        [Route("/Archive/GetTable")]
+        public async Task<IActionResult> GetTable(FilterModel[] Filters, OrderDataModel OrderData)
         {
-            IEnumerable<ColumnNameModel> model = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
+            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
 
-            List<SelectListItem> list = new List<SelectListItem>();
+            List<SelectListItem> ColumnNamesSelectList = new List<SelectListItem>();
 
             //Add every column from the database to list
-            foreach (ColumnNameModel item in model)
+            foreach (ColumnNameModel column in ColumnNames)
             {
-                list.Add(new SelectListItem { Value = item.COLUMN_NAME, Text = item.COLUMN_NAME });
+                ColumnNamesSelectList.Add(new SelectListItem { Value = column.COLUMN_NAME, Text = column.COLUMN_NAME });
             }
 
             #region Active Directory account cheching
@@ -109,53 +93,67 @@ namespace Arkiv.Controllers
             } 
             #endregion
 
-            //Make sure Filters is not empty
             if (Filters.Count() > 0)
             {
-                foreach(FilterModel Filter in Filters)
-                {
-                    //Determine which type, the current filter is
-                    switch(Filter.Type)
+                    if (sorted.Count() != 0)
+                        WhereClause += " AND ";
+
+                    foreach(FilterModel Filter in Filters)
                     {
-                        case "Single":
-                            //Check if the current item is the last item
-                            if(Filter.Equals(Filters[Filters.Length - 1]))
-                            {
-                                WhereClause += Filter.Name + " = " + "@" + Filter.Value.One.Replace(" ", string.Empty) + "";
-                                ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One));
-                            }
-                            else
-                            {
-                                WhereClause += Filter.Name + " = " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND ";
-                                ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One));
-                            }
-                            break;
-                        case "Range":
-                            //Check if the current item is the last item
-                            if (Filter.Equals(Filters[Filters.Length - 1]))
-                            {
-                                WhereClause += Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + "";
-                                ParamList.AddRange(new(string, object)[]
+                        switch(Filter.Type)
+                        {
+                            case "Single":
+                                //Check if the current item is the last item
+                                if(Filter.Equals(Filters[Filters.Length - 1]))
                                 {
-                                    ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
-                                    ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
-                                });
-                            }
-                            else
-                            {
-                                WhereClause += Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + " AND ";
-                                ParamList.AddRange(new(string, object)[]
+                                    WhereClause += Filter.Name + " = " + "@" + Filter.Value.One.Replace(" ", string.Empty) + "";
+                                    ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One));
+                                }
+                                else
                                 {
-                                    ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
-                                    ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
-                                });
-                            }
-                            break;
+                                    WhereClause += Filter.Name + " = " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND ";
+                                    ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One));
+                                }
+                                break;
+                            case "Range":
+                                //Check if the current item is the last item
+                                if (Filter.Equals(Filters[Filters.Length - 1]))
+                                {
+                                    WhereClause += Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + "";
+                                    ParamList.AddRange(new(string, object)[]
+                                    {
+                                        ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
+                                        ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
+                                    });
+                                }
+                                else
+                                {
+                                    WhereClause += Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + " AND ";
+                                    ParamList.AddRange(new(string, object)[]
+                                    {
+                                        ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
+                                        ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
+                                    });
+                                }
+                                break;
+                        }
                     }
+            } else
+            {
+                WhereClause = ""; //If there is no Filters, remove the WHERE keyword from WhereClause
+            }
+
+            string OrderClause = "";
+
+            if(OrderData.Order != null)
+            {
+                if(OrderData.Order.Equals("Descending"))
+                {
+                    OrderClause += " ORDER BY " + OrderData.Column + " DESC ";
                 }
             }
 
-            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>("SELECT " + (Filters.Count() == 0 ? "TOP 50" : "") + " * FROM arkiv " + WhereClause, ParamList.ToArray());
+            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>("SELECT " + (Filters.Count() == 0 ? "TOP 50" : "") + " * FROM arkiv " + WhereClause + OrderClause, ParamList.ToArray());
 
             //If there is no results, return the json object, "No Match"
             if (data.Count() == 0)
@@ -163,7 +161,7 @@ namespace Arkiv.Controllers
                 return Json("No Match");
             }
 
-            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = list.AsEnumerable(), data = data });
+            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = data });
         }
 
         [HttpPost]

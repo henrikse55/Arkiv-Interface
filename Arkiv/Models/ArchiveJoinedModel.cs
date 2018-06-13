@@ -8,5 +8,7 @@ namespace Arkiv.Models
         public IEnumerable<SelectListItem> selectListItems { get; set; }
 
         public IEnumerable<ArchiveDataModel> data { get; set; }
+
+        public bool adminPanelAccess { get; set; }
     }
 }
