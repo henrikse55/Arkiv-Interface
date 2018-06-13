@@ -9,6 +9,7 @@ using Arkiv.Models;
 using System.Linq;
 using Arkiv.Data;
 using System;
+using System.IO;
 
 namespace Arkiv.Controllers
 {
@@ -55,7 +56,7 @@ namespace Arkiv.Controllers
 
         [HttpPost]
         [Route("/Archive/GetTable")]
-        public async Task<IActionResult> GetTable(FilterModel[] Filters, OrderDataModel OrderData)
+        public async Task<IActionResult> GetTable(FilterModel[] Filters, OrderDataModel OrderData, int pages)
         {
             IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
 
@@ -188,7 +189,7 @@ namespace Arkiv.Controllers
                 return Json("No Match");
             }
 
-            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = list.AsEnumerable(), data = data, pages = pageCount });
+            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = data, pages = pageCount });
         }
 
         [HttpPost]
