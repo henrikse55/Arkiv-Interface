@@ -1,14 +1,24 @@
 ﻿var IndexApp = new Vue({
     el: '#IndexApp',
     data: {
+        tableLoader: true,
         selectedItem: '',
         filters: [],
+        pages: 0,
+        page: {
+            pages: 0,
+            numbers: [],
+            current: 0
+        },
     },
     methods: {
         ready: function () {
-            $.post('/Archive/GetTable/', (data) => {
+            $.post('/Archive/GetTable/', { pages: 1}, (data) => {
                 $('#TableContainer').html(data);
-                $('#loader').addClass("hidden");
+                this.tableLoader = false;
+                this.page.pages = parseInt($("#pages").html());
+
+                this.CalcPages();
             });
         },
         GetSelectedItem: function () {
@@ -16,16 +26,18 @@
             this.filters.push(Item);
         },
         PostFilters: function () {
-            if($('.FilterGroup').length == 0) {
-                Snackbar.show({
-                    text: 'The system was not able to find any matching record(s)!',
-                    pos: 'top-left',
-                    backgroundColor: '#e60000',
-                    showAction: false
-                });
+            $('#TableContainer').html('');
+            this.tableLoader = true;
+            //if($('.FilterGroup').length == 0) {
+            //    Snackbar.show({
+            //        text: 'The system was not able to find any matching record(s)!',
+            //        pos: 'top-left',
+            //        backgroundColor: '#e60000',
+            //        showAction: false
+            //    });
 
-                return;
-            }
+            //    return;
+            //}
 
             $('#ApplyButton').attr('disabled', true); //Disable ApplyButton while the data is being processed
             $('#ProgressBar').css({ 'visibility': 'visible', 'width': '100%' });
@@ -97,13 +109,11 @@
                 }
             }
 
-            console.log(FinalFilters);
+            //console.log(FinalFilters);
 
-            $.post('/Archive/GetTable/', { Filters: FinalFilters }, (data) => {
+            $.post('/Archive/GetTable/', { Filters: FinalFilters, pages: this.page.current+1 }, (data) => {
                 if (data !== 'No Match') {
-                    $('#TableContainer').html('');
                     $('#TableContainer').html(data);
-
                     Snackbar.show({
                         text: 'The requested record(s) was found successfuly!',
                         pos: 'top-left',
@@ -123,7 +133,29 @@
                     $('#ApplyButton').removeAttr('disabled'); //Re-enable the Apply button
                     $('#ProgressBar').css({ 'visibility': 'hidden', 'width': '100%' });
                 }
+                this.tableLoader = false;
             });
+        },
+        CalcPages: function ()
+        {
+            this.page.numbers = [];
+            let start = (this.page.current - 5);
+            for (let i = start >= 0 ? start : 0; i < this.page.current; i++)
+            {
+                this.page.numbers.push({item: i, active: ""});
+            }
+
+            this.page.numbers.push({ item: this.page.current, active: "active" });
+            for (let i = this.page.current + 1; i < this.page.current + 6; i++) {
+                if (i <= this.page.pages)
+                    this.page.numbers.push({ item: i, active: "" });
+            }
+        },
+        PageChange: function (page)
+        {
+            this.page.current = page;
+            this.CalcPages();
+            this.PostFilters();
         }
     }
 });

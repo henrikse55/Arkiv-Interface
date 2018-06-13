@@ -74,7 +74,7 @@ namespace Arkiv.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> GetTable(FilterModel[] Filters)
+        public async Task<IActionResult> GetTable(FilterModel[] Filters, int pages)
         {
             IEnumerable<ColumnNameModel> model = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
 
@@ -162,7 +162,33 @@ namespace Arkiv.Controllers
                 }
             }
 
-            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>("SELECT " + (Filters.Count() == 0 ? "TOP 50" : "") + " * FROM arkiv " + WhereClause, ParamList.ToArray());
+            if (pages == 0)
+                pages = 1;
+
+            int max = pages * 50;
+            int min = (max - 50 >= 0 ? max-50 : 0);
+
+            string query = @"SELECT 
+                           [Id], [STAMP], [FILTYP], [MODE],
+                           [DOCTYP], [DOCDATE], [DOCNO], [ORNO],
+                           [IVDT], [IVNO], [CUNO], [CUNM],
+                           [PYNO], [ORDT], [DUDT], [DLDT],
+                           [YREF], [CUOR], [CUDT], [OREF],
+                           [DLIX], [ADID], [ADNM], [ORTO],
+                           [CUCD], [CONO], [FACI], [DEVI],
+                           [WHLO], [PRTDATE], [MVXPRT], [TOMAIL],
+                           [CCMAIL], [SUNM], [PUON], [PUDT], [PATH]
+                           FROM(
+                               SELECT *, ROW_NUMBER() OVER(ORDER BY Id) AS RowNumber
+                           
+                               FROM arkiv {where}
+                           ) as t
+                           WHERE t.RowNumber between {min} and {max}".Replace("{min}", min.ToString()).Replace("{max}", max.ToString()).Replace("{where}", WhereClause);
+
+            string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " +WhereClause;
+
+            int pageCount = (int)(await sql.GetDataRawAsync(countQuery, ParamList.ToArray())).Rows[0][0];
+            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>(query, ParamList.ToArray());
 
             //If there is no results, return the json object, "No Match"
             if (data.Count() == 0)
@@ -170,7 +196,7 @@ namespace Arkiv.Controllers
                 return Json("No Match");
             }
 
-            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = list.AsEnumerable(), data = data });
+            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = list.AsEnumerable(), data = data, pages = pageCount });
         }
 
         [HttpPost]
