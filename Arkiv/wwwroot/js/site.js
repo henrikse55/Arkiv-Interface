@@ -137,7 +137,7 @@
             $.ajax({
                 type: 'POST',
                 url: '/Archive/GetTable/',
-                data: { Filters: FinalFilters, OrderData: { Order: this.orderBy, Column: this.colName, pages: this.page.current+1 }},
+                data: { Filters: FinalFilters, OrderData: { Order: this.order, Column: this.colName }, pages: this.page.current + 1},
                 success: (data) => {
                     if (data !== 'No Match') {
                         $('#TableContainer').html(data);

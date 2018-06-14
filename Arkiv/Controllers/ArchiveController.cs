@@ -311,5 +311,29 @@ namespace Arkiv.Controllers
             return Redirect("Index");
         }
         #endregion
+
+#if DEBUG
+        #region Test
+        [HttpGet]
+        public IActionResult Test()
+        {
+            var test = new WindowsPrincipal(WindowsIdentity.GetCurrent());
+
+            List<string> groups = new List<string>();
+
+            foreach (var t in WindowsIdentity.GetCurrent().Groups)
+                try
+                {
+                    groups.Add(t.Translate(typeof(NTAccount)).Value);
+                }
+                catch (Exception)
+                {
+                    groups.Add(t.Value);
+                }
+
+            return Json(new { isInGroup = test.IsInRole("Administrators"), User.Identity.Name, groups });
+        }
+        #endregion  
+#endif
     }
 }
