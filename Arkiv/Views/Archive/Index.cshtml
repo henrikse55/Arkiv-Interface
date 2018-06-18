@@ -25,7 +25,7 @@
                 <div class="table-bordered" id="FilterContainer" style="overflow-y: scroll; max-height: 800px;">
                     <filter-template v-for="item in filters" :key="item" v-bind:name="item"></filter-template>
                 </div>
-                <input type="button" value="Apply Filters" id="ApplyButton" class="form-control" v-on:click="PostFilters" />
+                <input type="button" value="Apply Filters" id="ApplyButton" class="form-control" v-on:click="PostFilters(false)" />
 
             </div>
             <div class="progress" style="background-color: white;">

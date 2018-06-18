@@ -8,8 +8,8 @@ using Arkiv.Data.Filter;
 using Arkiv.Models;
 using System.Linq;
 using Arkiv.Data;
-using System;
 using System.IO;
+using System;
 
 namespace Arkiv.Controllers
 {
@@ -18,12 +18,12 @@ namespace Arkiv.Controllers
     {
         #region Constructor
         private ISqlData sql;
-        private Config config;
+        private Config Configuration;
 
         public ArchiveController(ISqlData _data, Config _config)
         {
             sql = _data;
-            config = _config;
+            Configuration = _config;
         }
         #endregion
 
@@ -43,11 +43,11 @@ namespace Arkiv.Controllers
             //This section checks if the current user has access to the admin panel
             bool AdminPanelAccess = false;
 
-            config.AdminGroups.ToList().ForEach(group => {
+            Configuration.AdminGroups.ToList().ForEach(group => {
                 if (User.IsInRole(group)) AdminPanelAccess = true;
             });
 
-            config.AdminUsers.ToList().ForEach(user => {
+            Configuration.AdminUsers.ToList().ForEach(user => {
                 if (User.Identity.Name.Contains(user)) AdminPanelAccess = true;
             });
 
@@ -70,34 +70,37 @@ namespace Arkiv.Controllers
 
             #region Active Directory account cheching
             IEnumerable<ActiveModel> models = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
+
             WindowsIdentity identity = WindowsIdentity.GetCurrent();
-            var groups = identity.Groups.Select(x =>
+
+            IEnumerable<string> groups = identity.Groups.Select(group =>
             {
                 try
                 {
-                    return x.Translate(typeof(NTAccount)).Value;
+                    return group.Translate(typeof(NTAccount)).Value;
                 }
-                catch (Exception e) { }
+                catch (Exception) { }
                 return null;
             });
-            var sorted = (from x in models where groups.Any(y => y == x.Group.Replace("\\\\", "\\")) select x.DEVI);
+
+            IEnumerable<string> SortedModels = (from model in models where groups.Any(g => g == model.Group.Replace("\\\\", "\\")) select model.DEVI);
 
             string WhereClause = "WHERE ";
             List<(string, object)> ParamList = new List<(string, object)>();
 
-            if (sorted.Count(x => x.Contains('*')) == 0)
+            if (SortedModels.Count(x => x.Contains('*')) == 0)
             {
-                for (int i = 0; i < sorted.Count(); i++)
+                for (int i = 0; i < SortedModels.Count(); i++)
                 {
                     WhereClause += "DEVI = @DEVI" + i;
-                    ParamList.Add(("@DEVI" + i, sorted.ElementAt(i)));
+                    ParamList.Add(("@DEVI" + i, SortedModels.ElementAt(i)));
                 } 
             }
             #endregion
 
             if (Filters.Count() > 0)
             {
-                    if (sorted.Count() != 0)
+                    if (SortedModels.Count() != 0)
                         WhereClause += " AND ";
 
                     foreach(FilterModel Filter in Filters)
@@ -145,13 +148,13 @@ namespace Arkiv.Controllers
                 WhereClause = ""; //If there is no Filters, remove the WHERE keyword from WhereClause
             }
 
-            string OrderClause = "";
+            string OrderByClause = "";
 
             if(OrderData.Order != null)
             {
                 if(OrderData.Order.Equals("Descending"))
                 {
-                    OrderClause += " ORDER BY " + OrderData.Column + " DESC ";
+                    OrderByClause += " ORDER BY " + OrderData.Column + " DESC ";
                 }
             }
 
@@ -176,7 +179,11 @@ namespace Arkiv.Controllers
                            
                                FROM arkiv {where}
                            ) as t
-                           WHERE t.RowNumber between {min} and {max}".Replace("{min}", min.ToString()).Replace("{max}", max.ToString()).Replace("{where}", WhereClause);
+                           WHERE t.RowNumber between {min} and {max} {order}"
+                            .Replace("{min}", min.ToString())
+                            .Replace("{max}", max.ToString())
+                            .Replace("{where}", WhereClause)
+                            .Replace("{order}", OrderByClause);
 
             string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " +WhereClause;
 
@@ -204,11 +211,12 @@ namespace Arkiv.Controllers
         [Route("/pdf/{doc}")]
         public async Task<IActionResult> GetPdf(string doc)
         {
-            MemoryStream item = await GetFileStream(doc);
-            if (item != null)
+            MemoryStream PdfDocumentStream = await GetFileStream(doc);
+
+            if (PdfDocumentStream != null)
             {
                 sql.LogAsync("PDF Load", DateTime.Now, User.Identity.Name, doc);
-                return new FileStreamResult(item, "application/pdf");
+                return new FileStreamResult(PdfDocumentStream, "application/pdf");
             }
             else
             {
@@ -221,11 +229,12 @@ namespace Arkiv.Controllers
         [Route("/download/{doc}")]
         public async Task<IActionResult> Download(string doc)
         {
-            MemoryStream item = await GetFileStream(doc);
-            if (item != null)
+            MemoryStream PdfDocumentStream = await GetFileStream(doc);
+
+            if (PdfDocumentStream != null)
             {
                 sql.LogAsync("PDF Download", DateTime.Now, User.Identity.Name, doc);
-                return new FileStreamResult(item, "application/octet-stream");
+                return new FileStreamResult(PdfDocumentStream, "application/octet-stream");
             }
             else
             {
@@ -234,26 +243,25 @@ namespace Arkiv.Controllers
             }
         }
 
-        private async Task<MemoryStream> GetFileStream(string file)
+        private async Task<MemoryStream> GetFileStream(string document)
         {
-            var dir = Directory.EnumerateFiles(config.PdfPath);
-            var item = dir.Where(x => x.Contains(file)).Select(x => x);
-            if (item.Count() > 0)
+            IEnumerable<string> PdfDirectory = Directory.EnumerateFiles(Configuration.PdfPath);
+            IEnumerable<string> PdfDocumentPath = PdfDirectory.Where(dir => dir.Contains(document)).Select(doc => doc);
+
+            if (PdfDocumentPath.Count() > 0)
             {
-                using (var filestream = new FileStream(item.First(), FileMode.Open, FileAccess.Read, FileShare.Inheritable))
+                using (FileStream filestream = new FileStream(PdfDocumentPath.First(), FileMode.Open, FileAccess.Read, FileShare.Inheritable))
                 {
-                    MemoryStream s = new MemoryStream();
-                    await filestream.CopyToAsync(s);
-                    s.Position = 0;
-                    return s;
+                    MemoryStream PdfDocumentStream = new MemoryStream();
+                    await filestream.CopyToAsync(PdfDocumentStream);
+                    PdfDocumentStream.Position = 0;
+
+                    return PdfDocumentStream;
                 }
             }
-            else
-            {
-                return null;
-            }
-        }
 
+            return null;
+        }
         #endregion
 
 
@@ -261,7 +269,7 @@ namespace Arkiv.Controllers
         [HttpGet]
         public IActionResult Admin()
         {
-            foreach(string group in config.AdminGroups)
+            foreach(string group in Configuration.AdminGroups)
             {
                 if(User.IsInRole(group))
                 {
@@ -269,7 +277,7 @@ namespace Arkiv.Controllers
                 }
             }
 
-            foreach(string user in config.AdminUsers)
+            foreach(string user in Configuration.AdminUsers)
             {
                 if(User.Identity.Name.Contains(user))
                 {
