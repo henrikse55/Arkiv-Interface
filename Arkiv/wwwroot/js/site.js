@@ -22,7 +22,6 @@
                 success: (data) => {
                     $('#TableContainer').html(data);
                     this.tableLoader = false;
-                    this.page.pages = parseInt($("#pages").html());
                     this.CalculatePages();
                 },
                 error: (jqXHR, exception) => {
@@ -162,6 +161,8 @@
         },
         CalculatePages: function ()
         {
+            this.page.pages = parseInt($("#pages").html());
+
             this.page.numbers = [];
             let start = (this.page.current - 5);
             for (let i = start >= 0 ? start : 0; i < this.page.current; i++)
