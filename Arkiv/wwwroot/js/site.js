@@ -10,7 +10,7 @@
             numbers: [],
             current: 0
         },
-        order: 'Ascending',
+        orderBy: 'Ascending',
         colName: ''
     },
     methods: {
@@ -23,7 +23,7 @@
                     $('#TableContainer').html(data);
                     this.tableLoader = false;
                     this.page.pages = parseInt($("#pages").html());
-                    this.CalcPages();
+                    this.CalculatePages();
                 },
                 error: (jqXHR, exception) => {
                     $('#TableContainer').html(`<h1 style="color: red;">${exception} - ${jqXHR.status}</h1>`); //If an error occures, display an error message
@@ -34,22 +34,12 @@
             let Item = this.$data.selectedItem;
             this.filters.push(Item);
         },
-        PostFilters: function () {
-            $('#TableContainer').html('');
-            this.tableLoader = true;
-            //if($('.FilterGroup').length == 0) {
-            //    Snackbar.show({
-            //        text: 'The system was not able to find any matching record(s)!',
-            //        pos: 'top-left',
-            //        backgroundColor: '#e60000',
-            //        showAction: false
-            //    });
+        PostFilters: function (isPageChange) {
+            if (!isPageChange && $('.FilterGroup').length == 0) {
+                Snack('You must add a filter in order to make a search!', '#e60000');
 
-            //    return;
-            //}
-
-            $('#ApplyButton').attr('disabled', true); //Disable ApplyButton while the data is being processed
-            $('#ProgressBar').css({ 'visibility': 'visible', 'width': '100%' });
+                return;
+            }
 
             let Filters = [];
 
@@ -97,6 +87,13 @@
                 return;
             }
 
+            this.tableLoader = true;
+
+            $('#ApplyButton').attr('disabled', true); //Disable ApplyButton while the data is being processed
+            $('#ProgressBar').css({ 'visibility': 'visible', 'width': '100%' });
+            $('#TableContainer').html('');
+
+
             let FinalFilters = [];
 
             let TempFrom = []; //Used for temporarily storing the 'From' part of a range filter
@@ -137,16 +134,12 @@
                 }
             }
 
-            //console.log(FinalFilters);
-            //console.log({ Order: this.order, Column: this.colName });
-
             $.ajax({
                 type: 'POST',
                 url: '/Archive/GetTable/',
-                data: { Filters: FinalFilters, OrderData: { Order: this.order, Column: this.colName, pages: this.page.current+1 }},
+                data: { Filters: FinalFilters, OrderData: { Order: this.orderBy, Column: this.colName, pages: this.page.current+1 }},
                 success: (data) => {
                     if (data !== 'No Match') {
-                        $('#TableContainer').html('');
                         $('#TableContainer').html(data);
 
                         Snack('The requested record(s) was found successfuly!', '#33cc33');
@@ -167,7 +160,7 @@
                 }
             });
         },
-        CalcPages: function ()
+        CalculatePages: function ()
         {
             this.page.numbers = [];
             let start = (this.page.current - 5);
@@ -185,8 +178,8 @@
         PageChange: function (page)
         {
             this.page.current = page;
-            this.CalcPages();
-            this.PostFilters();
+            this.CalculatePages();
+            this.PostFilters(true);
         }
     }
 });
@@ -247,14 +240,14 @@ Vue.component('filter-template', {
 Vue.component('order-select', {
     data: function() {
         return {
-            order: 'Ascending'
+            orderBy: 'Ascending'
         }
     },
-    template: '<select v-model="order" class="form-control" id="OrderSelect"><option value="Ascending">Ascending</option><option value="Descending">Descending</option></select>',
+    template: '<select v-model="orderBy" class="form-control" id="OrderSelect"><option value="Ascending">Ascending</option><option value="Descending">Descending</option></select>',
     watch: {
-        order: {
+        orderBy: {
             handler: function () {
-                IndexApp.order = this.order;
+                IndexApp.orderBy = this.orderBy;
             }
         }
     }
@@ -262,7 +255,7 @@ Vue.component('order-select', {
 
 IndexApp.ready();
 
-
+//This method uses the snackbar.js library
 function Snack(message, color) {
     Snackbar.show({
         text: message,

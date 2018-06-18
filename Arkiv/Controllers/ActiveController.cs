@@ -28,7 +28,9 @@ namespace Arkiv.Controllers
         public async Task<IActionResult> List()
         {
             logger.LogInformation("User: {0} requested admin data", User.Identity.Name);
+
             IEnumerable<ActiveModel> models = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
+
             IEnumerable<ActivityLogModel> logs = await sql.SelectDataAsync<ActivityLogModel>("SELECT * FROM activity");
 
             return Json(new {groups = models, logs });
@@ -55,7 +57,5 @@ namespace Arkiv.Controllers
             else
                 return Json(null);
         }
-
-
     }
 }
