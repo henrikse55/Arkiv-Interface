@@ -10,7 +10,7 @@
             <strong>Hello, @User.Identity.Name</strong>
         </div>
         <div class="col-sm-6">
-            @if (Model.adminPanelAccess) { <a asp-controller="Archive" asp-action="Admin">Admin Panel</a> }
+            @if (Model.adminPanelAccess) { <a asp-controller="Archive" asp-action="Admin" class="btn btn-info">Admin Panel</a> }
         </div>
     </div>
 
@@ -22,7 +22,7 @@
                 <select asp-items="Model.selectListItems" v-on:change="GetSelectedItem()" v-model="selectedItem" id="dropdownindex" class="form-control btn btn-dark dropdown">
                     <option value="" disabled>--- Pick a filter ---</option>
                 </select>
-                <div class="table-bordered" id="FilterContainer" style="overflow-y: scroll; max-height: 800px;">
+                <div class="table-bordered" id="FilterContainer" style="overflow-y: scroll; max-height: 650px;">
                     <filter-template v-for="item in filters" :key="item" v-bind:name="item"></filter-template>
                 </div>
                 <input type="button" value="Apply Filters" id="ApplyButton" class="form-control" v-on:click="PostFilters(false)" />
@@ -40,6 +40,8 @@
             <div id="TableContainer" style="border: 1px solid #ccc; overflow: auto;">
             </div>
         </div>
+    </div>
+    <div class="row">
         <div class="col-md-5"></div>
         <div class="col-md-5">
             <div class="justify-content-md-center">
