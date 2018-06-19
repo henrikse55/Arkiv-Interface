@@ -10,6 +10,7 @@ using System.Linq;
 using Arkiv.Data;
 using System.IO;
 using System;
+using System.DirectoryServices.AccountManagement;
 
 namespace Arkiv.Controllers
 {
@@ -68,22 +69,14 @@ namespace Arkiv.Controllers
                 ColumnNamesSelectList.Add(new SelectListItem { Value = column.COLUMN_NAME, Text = column.COLUMN_NAME });
             }
 
+            bool ClearWhereFlag = false;
+
             #region Active Directory account cheching
-            IEnumerable<ActiveModel> models = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
+            IEnumerable<ActiveModel> AdModels = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
 
-            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            IEnumerable<string> groups = GetUserGroups();
 
-            IEnumerable<string> groups = identity.Groups.Select(group =>
-            {
-                try
-                {
-                    return group.Translate(typeof(NTAccount)).Value;
-                }
-                catch (Exception) { }
-                return null;
-            });
-
-            IEnumerable<string> SortedModels = (from model in models where groups.Any(g => g == model.Group.Replace("\\\\", "\\")) select model.DEVI);
+            IEnumerable<string> SortedModels = (from model in AdModels where groups.Any(g => g == model.Group) select model.DEVI);
 
             string WhereClause = "WHERE ";
             List<(string, object)> ParamList = new List<(string, object)>();
@@ -92,9 +85,18 @@ namespace Arkiv.Controllers
             {
                 for (int i = 0; i < SortedModels.Count(); i++)
                 {
+                    if (i < SortedModels.Count() && i > 0)
+                    {
+                        WhereClause += " OR ";
+                    }
                     WhereClause += "DEVI = @DEVI" + i;
                     ParamList.Add(("@DEVI" + i, SortedModels.ElementAt(i)));
-                } 
+
+                }
+            }
+            else
+            {
+                ClearWhereFlag = true;
             }
             #endregion
 
@@ -111,13 +113,13 @@ namespace Arkiv.Controllers
                                 //Check if the current item is the last item
                                 if(Filter.Equals(Filters[Filters.Length - 1]))
                                 {
-                                    WhereClause += Filter.Name + " = " + "@" + Filter.Value.One.Replace(" ", string.Empty) + "";
-                                    ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One));
+                                    WhereClause += Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty) + "";
+                                    ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), "%" + Filter.Value.One + "%"));
                                 }
                                 else
                                 {
-                                    WhereClause += Filter.Name + " = " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND ";
-                                    ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One));
+                                    WhereClause += Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND ";
+                                    ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), "%" + Filter.Value.One + "%"));
                                 }
                                 break;
                             case "Range":
@@ -143,9 +145,9 @@ namespace Arkiv.Controllers
                                 break;
                         }
                     }
-            } else
+            } else if(ClearWhereFlag)
             {
-                WhereClause = ""; //If there is no Filters, remove the WHERE keyword from WhereClause
+                    WhereClause = ""; //If there is no Filters, remove the WHERE keyword from WhereClause
             }
 
             string OrderByClause = "";
@@ -185,7 +187,7 @@ namespace Arkiv.Controllers
                             .Replace("{where}", WhereClause)
                             .Replace("{order}", OrderByClause);
 
-            string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " +WhereClause;
+            string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " + WhereClause;
 
             int pageCount = (int)(await sql.GetDataRawAsync(countQuery, ParamList.ToArray())).Rows[0][0];
             IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>(query, ParamList.ToArray());
@@ -312,28 +314,46 @@ namespace Arkiv.Controllers
         }
         #endregion
 
-#if DEBUG
+        #region AD Intergration
+        private IEnumerable<string> GetUserGroups()
+        {
+            PrincipalContext context = new PrincipalContext(ContextType.Domain);
+            UserPrincipal userPrincipal = UserPrincipal.FindByIdentity(context, User.Identity.Name.Split("\\")[1]);
+
+            if (userPrincipal != null)
+            {
+                PrincipalSearchResult<Principal> groups = userPrincipal.GetAuthorizationGroups();
+                var names = groups.AsParallel().Where(x => x is GroupPrincipal).Select(x => x.Name ?? "");
+
+                return names;
+            }
+            return null;
+        }
+
+        private bool IsInGroup(string user) => GetUserGroups().Any(x => x.Contains(user));
+        #endregion
+
         #region Test
         [HttpGet]
-        public IActionResult Test()
+        [Route("test/{group?}")]
+        public IActionResult Test(string group)
         {
-            var test = new WindowsPrincipal(WindowsIdentity.GetCurrent());
+            if(group == null)
+                group = "Administrators";
 
-            List<string> groups = new List<string>();
+            PrincipalContext context = new PrincipalContext(ContextType.Domain);
+            UserPrincipal userPrincipal = UserPrincipal.FindByIdentity(context, User.Identity.Name.Split("\\")[1]);
+            
+            if(userPrincipal != null)
+            {
+                PrincipalSearchResult<Principal> groups = userPrincipal.GetAuthorizationGroups();
+                var names = groups.AsParallel().Where(x => x is GroupPrincipal).Select(x => x.Name ?? "");
 
-            foreach (var t in WindowsIdentity.GetCurrent().Groups)
-                try
-                {
-                    groups.Add(t.Translate(typeof(NTAccount)).Value);
-                }
-                catch (Exception)
-                {
-                    groups.Add(t.Value);
-                }
+                return Json(new { isInGroup = names.Any(x => x.Contains(group)), value = group, User.Identity.Name, names });
+            }
 
-            return Json(new { isInGroup = test.IsInRole("Administrators"), User.Identity.Name, groups });
+            return Json("ERROR FUCK OFF");
         }
         #endregion  
-#endif
     }
 }
