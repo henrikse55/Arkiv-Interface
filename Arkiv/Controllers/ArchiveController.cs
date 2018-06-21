@@ -45,7 +45,7 @@ namespace Arkiv.Controllers
             bool AdminPanelAccess = false;
 
             Configuration.AdminGroups.ToList().ForEach(group => {
-                if (User.IsInRole(group)) AdminPanelAccess = true;
+                if (IsInGroup(group)) AdminPanelAccess = true;
             });
 
             Configuration.AdminUsers.ToList().ForEach(user => {
@@ -273,7 +273,7 @@ namespace Arkiv.Controllers
         {
             foreach(string group in Configuration.AdminGroups)
             {
-                if(User.IsInRole(group))
+                if(IsInGroup(group))
                 {
                     return View();
                 }
