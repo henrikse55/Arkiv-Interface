@@ -10,6 +10,9 @@ using System.Linq;
 using Arkiv.Data;
 using System.IO;
 using System;
+using System.DirectoryServices.AccountManagement;
+using System.Text;
+using Newtonsoft.Json;
 
 namespace Arkiv.Controllers
 {
@@ -44,7 +47,7 @@ namespace Arkiv.Controllers
             bool AdminPanelAccess = false;
 
             Configuration.AdminGroups.ToList().ForEach(group => {
-                if (User.IsInRole(group)) AdminPanelAccess = true;
+                if (IsInGroup(group)) AdminPanelAccess = true;
             });
 
             Configuration.AdminUsers.ToList().ForEach(user => {
@@ -58,94 +61,94 @@ namespace Arkiv.Controllers
         [Route("/Archive/GetTable")]
         public async Task<IActionResult> GetTable(FilterModel[] Filters, OrderDataModel OrderData, int pages)
         {
-            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
-
-            List<SelectListItem> ColumnNamesSelectList = new List<SelectListItem>();
-
-            //Add every column from the database to list
-            foreach (ColumnNameModel column in ColumnNames)
+            if (Filters != null)
             {
-                ColumnNamesSelectList.Add(new SelectListItem { Value = column.COLUMN_NAME, Text = column.COLUMN_NAME });
+                string parameters = JsonConvert.SerializeObject(new { Filters, OrderData });
+                sql.LogAsync("Filter Applied", DateTime.Now, User.Identity.Name, parameters);
             }
 
+
+            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
+
+            List<SelectListItem> ColumnNamesSelectList = ColumnNames.Select(x => new SelectListItem() { Value = x.COLUMN_NAME, Text = x.COLUMN_NAME}).ToList();
+
+            ////Add every column from the database to list
+            //foreach (ColumnNameModel column in ColumnNames)
+            //{
+            //    ColumnNamesSelectList.Add(new SelectListItem { Value = column.COLUMN_NAME, Text = column.COLUMN_NAME });
+            //}
+
             #region Active Directory account cheching
-            IEnumerable<ActiveModel> models = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
+            bool ClearWhereFlag = false;
 
-            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            IEnumerable<ActiveModel> AdModels = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
 
-            IEnumerable<string> groups = identity.Groups.Select(group =>
-            {
-                try
-                {
-                    return group.Translate(typeof(NTAccount)).Value;
-                }
-                catch (Exception) { }
-                return null;
-            });
+            IEnumerable<string> groups = GetUserGroups();
 
-            IEnumerable<string> SortedModels = (from model in models where groups.Any(g => g == model.Group.Replace("\\\\", "\\")) select model.DEVI);
+            IEnumerable<string> SortedModels = (from model in AdModels where groups.Any(g => g == model.Group) select model.DEVI);
 
-            string WhereClause = "WHERE ";
+            string WhereClause = "WHERE (";
             List<(string, object)> ParamList = new List<(string, object)>();
 
             if (SortedModels.Count(x => x.Contains('*')) == 0)
             {
                 for (int i = 0; i < SortedModels.Count(); i++)
                 {
+                    if (i < SortedModels.Count() && i > 0)
+                    {
+                        WhereClause += " OR ";
+                    }
                     WhereClause += "DEVI = @DEVI" + i;
                     ParamList.Add(("@DEVI" + i, SortedModels.ElementAt(i)));
-                } 
+
+                }
+
+                WhereClause += ")";
+            }
+            else
+            {
+                ClearWhereFlag = true;
             }
             #endregion
 
             if (Filters.Count() > 0)
             {
-                    if (SortedModels.Count() != 0)
-                        WhereClause += " AND ";
+                if (SortedModels.Count() != 0)
+                    WhereClause += " AND ";
 
-                    foreach(FilterModel Filter in Filters)
+                object locker = new object();
+                Filters.AsParallel().ForAll(Filter =>
+                {
+                    switch (Filter.Type)
                     {
-                        switch(Filter.Type)
-                        {
-                            case "Single":
-                                //Check if the current item is the last item
-                                if(Filter.Equals(Filters[Filters.Length - 1]))
-                                {
-                                    WhereClause += Filter.Name + " = " + "@" + Filter.Value.One.Replace(" ", string.Empty) + "";
-                                    ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One));
-                                }
-                                else
-                                {
-                                    WhereClause += Filter.Name + " = " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND ";
-                                    ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One));
-                                }
-                                break;
-                            case "Range":
-                                //Check if the current item is the last item
-                                if (Filter.Equals(Filters[Filters.Length - 1]))
-                                {
-                                    WhereClause += Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + "";
-                                    ParamList.AddRange(new(string, object)[]
-                                    {
-                                        ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
-                                        ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
-                                    });
-                                }
-                                else
-                                {
-                                    WhereClause += Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + " AND ";
-                                    ParamList.AddRange(new(string, object)[]
-                                    {
-                                        ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
-                                        ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
-                                    });
-                                }
-                                break;
-                        }
+                        case "Single":
+                            //Check if the current item is the last item
+                            lock (locker)
+                            {
+                                WhereClause += Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : "");
+                            }
+
+                            ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), "%" + Filter.Value.One + "%")); 
+                            break;
+                        case "Range":
+                            //Check if the current item is the last item
+                            lock (locker)
+                            {
+                                WhereClause += Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : "");
+                            }
+
+                            ParamList.AddRange(new(string, object)[]
+                            {
+                                ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
+                                ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
+                            }); 
+                            break;
                     }
-            } else
+                });
+
+            } else if(ClearWhereFlag)
             {
-                WhereClause = ""; //If there is no Filters, remove the WHERE keyword from WhereClause
+                    WhereClause = ""; //If there is no Filters, remove the WHERE keyword from WhereClause
             }
 
             string OrderByClause = "";
@@ -180,7 +183,6 @@ namespace Arkiv.Controllers
                            [CCMAIL], [SUNM], [PUON], [PUDT], [PATH]
                            FROM(
                                SELECT *, ROW_NUMBER() OVER(ORDER BY Id) AS RowNumber
-                           
                                FROM arkiv {where}
                            ) as t
                            WHERE t.RowNumber between {min} and {max} {order}"
@@ -286,7 +288,7 @@ namespace Arkiv.Controllers
         {
             foreach(string group in Configuration.AdminGroups)
             {
-                if(User.IsInRole(group))
+                if(IsInGroup(group))
                 {
                     return View();
                 }
@@ -304,28 +306,46 @@ namespace Arkiv.Controllers
         }
         #endregion
 
-#if DEBUG
+        #region AD Intergration
+        private IEnumerable<string> GetUserGroups()
+        {
+            PrincipalContext context = new PrincipalContext(ContextType.Domain);
+            UserPrincipal userPrincipal = UserPrincipal.FindByIdentity(context, User.Identity.Name.Split("\\")[1]);
+
+            if (userPrincipal != null)
+            {
+                PrincipalSearchResult<Principal> groups = userPrincipal.GetAuthorizationGroups();
+                var names = groups.AsParallel().Where(x => x is GroupPrincipal).Select(x => x.Name ?? "");
+
+                return names;
+            }
+            return null;
+        }
+
+        private bool IsInGroup(string user) => GetUserGroups().Any(x => x.Contains(user));
+        #endregion
+
         #region Test
         [HttpGet]
-        public IActionResult Test()
+        [Route("test/{group?}")]
+        public IActionResult Test(string group)
         {
-            var test = new WindowsPrincipal(WindowsIdentity.GetCurrent());
+            if(group == null)
+                group = "Administrators";
 
-            List<string> groups = new List<string>();
+            PrincipalContext context = new PrincipalContext(ContextType.Domain);
+            UserPrincipal userPrincipal = UserPrincipal.FindByIdentity(context, User.Identity.Name.Split("\\")[1]);
+            
+            if(userPrincipal != null)
+            {
+                PrincipalSearchResult<Principal> groups = userPrincipal.GetAuthorizationGroups();
+                var names = groups.AsParallel().Where(x => x is GroupPrincipal).Select(x => x.Name ?? "");
 
-            foreach (var t in WindowsIdentity.GetCurrent().Groups)
-                try
-                {
-                    groups.Add(t.Translate(typeof(NTAccount)).Value);
-                }
-                catch (Exception)
-                {
-                    groups.Add(t.Value);
-                }
+                return Json(new { isInGroup = names.Any(x => x.Contains(group)), value = group, User.Identity.Name, names });
+            }
 
-            return Json(new { isInGroup = test.IsInRole("Administrators"), User.Identity.Name, groups });
+            return Json("ERROR FUCK OFF");
         }
         #endregion  
-#endif
     }
 }
