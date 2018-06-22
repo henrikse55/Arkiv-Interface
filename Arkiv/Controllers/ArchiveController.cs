@@ -11,6 +11,8 @@ using Arkiv.Data;
 using System.IO;
 using System;
 using System.DirectoryServices.AccountManagement;
+using System.Text;
+using Newtonsoft.Json;
 
 namespace Arkiv.Controllers
 {
@@ -59,19 +61,26 @@ namespace Arkiv.Controllers
         [Route("/Archive/GetTable")]
         public async Task<IActionResult> GetTable(FilterModel[] Filters, OrderDataModel OrderData, int pages)
         {
-            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
-
-            List<SelectListItem> ColumnNamesSelectList = new List<SelectListItem>();
-
-            //Add every column from the database to list
-            foreach (ColumnNameModel column in ColumnNames)
+            if (Filters != null)
             {
-                ColumnNamesSelectList.Add(new SelectListItem { Value = column.COLUMN_NAME, Text = column.COLUMN_NAME });
+                string parameters = JsonConvert.SerializeObject(new { Filters, OrderData });
+                sql.LogAsync("Filter Applied", DateTime.Now, User.Identity.Name, parameters);
             }
 
-            bool ClearWhereFlag = false;
+
+            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
+
+            List<SelectListItem> ColumnNamesSelectList = ColumnNames.Select(x => new SelectListItem() { Value = x.COLUMN_NAME, Text = x.COLUMN_NAME}).ToList();
+
+            ////Add every column from the database to list
+            //foreach (ColumnNameModel column in ColumnNames)
+            //{
+            //    ColumnNamesSelectList.Add(new SelectListItem { Value = column.COLUMN_NAME, Text = column.COLUMN_NAME });
+            //}
 
             #region Active Directory account cheching
+            bool ClearWhereFlag = false;
+
             IEnumerable<ActiveModel> AdModels = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
 
             IEnumerable<string> groups = GetUserGroups();
@@ -178,7 +187,6 @@ namespace Arkiv.Controllers
                            [CCMAIL], [SUNM], [PUON], [PUDT], [PATH]
                            FROM(
                                SELECT *, ROW_NUMBER() OVER(ORDER BY Id) AS RowNumber
-                           
                                FROM arkiv {where}
                            ) as t
                            WHERE t.RowNumber between {min} and {max} {order}"
