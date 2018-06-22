@@ -12,5 +12,7 @@ namespace Arkiv.Models
         public int pages { get; internal set; }
 
         public bool adminPanelAccess { get; set; }
+
+        public Dictionary<string, string> FullColumnNames { get; set; }
     }
 }

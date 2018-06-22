@@ -23,7 +23,6 @@ namespace Arkiv.Controllers
             logger = _logger;
         }
 
-
         [HttpGet]
         [Route("access")]
         public async Task<IActionResult> Access()
