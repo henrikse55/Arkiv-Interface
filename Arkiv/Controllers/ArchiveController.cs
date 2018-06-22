@@ -87,7 +87,7 @@ namespace Arkiv.Controllers
 
             IEnumerable<string> SortedModels = (from model in AdModels where groups.Any(g => g == model.Group) select model.DEVI);
 
-            string WhereClause = "WHERE ";
+            string WhereClause = "WHERE (";
             List<(string, object)> ParamList = new List<(string, object)>();
 
             if (SortedModels.Count(x => x.Contains('*')) == 0)
@@ -102,6 +102,8 @@ namespace Arkiv.Controllers
                     ParamList.Add(("@DEVI" + i, SortedModels.ElementAt(i)));
 
                 }
+
+                WhereClause += ")";
             }
             else
             {
@@ -111,49 +113,39 @@ namespace Arkiv.Controllers
 
             if (Filters.Count() > 0)
             {
-                    if (SortedModels.Count() != 0)
-                        WhereClause += " AND ";
+                if (SortedModels.Count() != 0)
+                    WhereClause += " AND ";
 
-                    foreach(FilterModel Filter in Filters)
+                object locker = new object();
+                Filters.AsParallel().ForAll(Filter =>
+                {
+                    switch (Filter.Type)
                     {
-                        switch(Filter.Type)
-                        {
-                            case "Single":
-                                //Check if the current item is the last item
-                                if(Filter.Equals(Filters[Filters.Length - 1]))
-                                {
-                                    WhereClause += Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty) + "";
-                                    ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), "%" + Filter.Value.One + "%"));
-                                }
-                                else
-                                {
-                                    WhereClause += Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND ";
-                                    ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), "%" + Filter.Value.One + "%"));
-                                }
-                                break;
-                            case "Range":
-                                //Check if the current item is the last item
-                                if (Filter.Equals(Filters[Filters.Length - 1]))
-                                {
-                                    WhereClause += Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + "";
-                                    ParamList.AddRange(new(string, object)[]
-                                    {
-                                        ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
-                                        ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
-                                    });
-                                }
-                                else
-                                {
-                                    WhereClause += Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + " AND ";
-                                    ParamList.AddRange(new(string, object)[]
-                                    {
-                                        ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
-                                        ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
-                                    });
-                                }
-                                break;
-                        }
+                        case "Single":
+                            //Check if the current item is the last item
+                            lock (locker)
+                            {
+                                WhereClause += Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : "");
+                            }
+
+                            ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), "%" + Filter.Value.One + "%")); 
+                            break;
+                        case "Range":
+                            //Check if the current item is the last item
+                            lock (locker)
+                            {
+                                WhereClause += Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : "");
+                            }
+
+                            ParamList.AddRange(new(string, object)[]
+                            {
+                                ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
+                                ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
+                            }); 
+                            break;
                     }
+                });
+
             } else if(ClearWhereFlag)
             {
                     WhereClause = ""; //If there is no Filters, remove the WHERE keyword from WhereClause
