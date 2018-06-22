@@ -281,29 +281,6 @@ namespace Arkiv.Controllers
         }
         #endregion
 
-        #region Test
-        [HttpGet]
-        public IActionResult Test()
-        {
-            WindowsPrincipal test = new WindowsPrincipal(WindowsIdentity.GetCurrent());
-
-            List<string> groups = new List<string>();
-
-            foreach (IdentityReference group in WindowsIdentity.GetCurrent().Groups)
-            {
-                try
-                {
-                    groups.Add(group.Translate(typeof(NTAccount)).Value);
-                }
-                catch (Exception)
-                {
-                    groups.Add(group.Value);
-                }
-            }
-
-            return Json(new { isInGroup = test.IsInRole("Administrators"), User.Identity.Name,  groups});
-        }
-        #endregion
 
         #region Admin
         [HttpGet]
