@@ -1,10 +1,11 @@
 ﻿@model ArchiveJoinedModel
+
 <table class="table table-bordered table-sm table-hover">
     <thead class="thead-dark">
         <tr>
-            @foreach (SelectListItem item in Model.selectListItems)
+            @foreach (KeyValuePair<string, string> item in Model.FullColumnNames)
             {
-                <th>@item.Value</th>
+                <th>@(item.Value != null ? item.Value : item.Key)</th>
             }
         </tr>
     </thead>

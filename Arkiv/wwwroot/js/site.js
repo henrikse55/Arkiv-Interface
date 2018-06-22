@@ -18,7 +18,6 @@
             $.ajax({
                 type: 'POST',
                 url: '/Archive/GetTable/',
-                //data: { Filters: [{ Name: 'NONE', Type: 'Single', Value: { One: '5000', Two: null }}], OrderData: { Order: 'Ascending', Column: '' } },
                 success: (data) => {
                     $('#TableContainer').html(data);
                     this.tableLoader = false;

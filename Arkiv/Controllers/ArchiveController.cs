@@ -152,9 +152,13 @@ namespace Arkiv.Controllers
 
             if(OrderData.Order != null)
             {
-                if(OrderData.Order.Equals("Descending"))
+                if (OrderData.Order.Equals("Descending"))
                 {
                     OrderByClause += " ORDER BY " + OrderData.Column + " DESC ";
+                }
+                else if(OrderData.Order.Equals("Ascending"))
+                {
+                    OrderByClause += " ORDER BY " + OrderData.Column + " ASC";
                 }
             }
 
@@ -185,10 +189,21 @@ namespace Arkiv.Controllers
                             .Replace("{where}", WhereClause)
                             .Replace("{order}", OrderByClause);
 
-            string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " +WhereClause;
+            string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " + WhereClause;
 
             int pageCount = (int)(await sql.GetDataRawAsync(countQuery, ParamList.ToArray())).Rows[0][0];
+
             IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>(query, ParamList.ToArray());
+
+            IEnumerable<ColumnDefinitionModel> ColumnDefinitions = await sql.SelectDataAsync<ColumnDefinitionModel>("SELECT * FROM ColumnDefinition");
+
+            Dictionary<string, string> ColumnDictionary = new Dictionary<string, string>();
+
+            ColumnNamesSelectList.ForEach(item =>
+            {
+                string value = item.Value;
+                ColumnDictionary.Add(value, ColumnDefinitions.Any(x => x.ShortName.Equals(value)) ? ColumnDefinitions.Where(x => x.ShortName.Equals(value)).First().FullName : value);
+            });
 
             //If there is no results, return the json object, "No Match"
             if (data.Count() == 0)
@@ -196,7 +211,7 @@ namespace Arkiv.Controllers
                 return Json("No Match");
             }
 
-            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = data, pages = pageCount });
+            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = data, pages = pageCount, FullColumnNames = ColumnDictionary });
         }
 
         [HttpPost]
