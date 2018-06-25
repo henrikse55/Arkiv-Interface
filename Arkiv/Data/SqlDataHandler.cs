@@ -89,41 +89,37 @@ namespace Arkiv.Data
                         SqlDataReader reader = await select.ExecuteReaderAsync();
 
                         List<T> items = new List<T>();
+                        DataTable table = new DataTable();
                         while (reader.Read())
                         {
-                            T item = await Task.Run(async () =>
+                            T instance = (T)Activator.CreateInstance(type);
+                            foreach (string prop in properties)
                             {
-                                T instance = (T)Activator.CreateInstance(type);
-                                foreach (string prop in properties)
+                                int index = reader.GetOrdinal(prop);
+                                Type dataType = reader.GetFieldType(index);
+                                TypeConverter converter = TypeDescriptor.GetConverter(dataType);
+
+                                if (converter.IsValid(reader[prop]))
                                 {
-                                    int index = reader.GetOrdinal(prop);
-                                    Type dataType = reader.GetFieldType(index);
-                                    TypeConverter converter = TypeDescriptor.GetConverter(dataType);
-
-                                    if (converter.IsValid(reader[prop]))
+                                    try
                                     {
-                                        try
-                                        {
-                                            if (!await reader.IsDBNullAsync(index))
-                                                type.GetProperty(prop).SetValue(instance, converter.ConvertTo(reader[prop], type.GetProperty(prop).PropertyType));
-                                        }
-                                        catch (Exception)
-                                        {
-
-                                        }
+                                        if (!await reader.IsDBNullAsync(index))
+                                            type.GetProperty(prop).SetValue(instance, converter.ConvertTo(reader[prop], type.GetProperty(prop).PropertyType));
                                     }
-                                    else
+                                    catch (Exception)
                                     {
-                                        if(!await reader.IsDBNullAsync(index))
-                                        {
-                                            type.GetProperty(prop).SetValue(instance, reader[prop]);
-                                        }
+
                                     }
                                 }
-                                return instance;
-                            });
-
-                            items.Add(item);
+                                else
+                                {
+                                    if(!await reader.IsDBNullAsync(index))
+                                    {
+                                        type.GetProperty(prop).SetValue(instance, reader[prop]);
+                                    }
+                                }
+                            }
+                            items.Add(instance);
                         }
                         #endregion
 
