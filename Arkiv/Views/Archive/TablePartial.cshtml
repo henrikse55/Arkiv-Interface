@@ -13,8 +13,7 @@
         @foreach (ArchiveDataModel data in Model.data)
         {
             Type type = typeof(ArchiveDataModel);
-            var props = type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-            
+            var props = type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance).Where(x => Model.ColumnsNotOnBlacklist.Any(c => c.COLUMN_NAME == x.Name));
             <tr>
                 @foreach (var prop in props)
                 {

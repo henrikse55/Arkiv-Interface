@@ -45,7 +45,12 @@
         <div class="col-md-4"></div>
         <div class="col-md-5">
             <div class="justify-content-md-center">
-                <nav aria-label="Page Navigation">
+                <nav v-if="PagingBarDisabled">
+                    <div class="progress" style="background-color: white;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="visibility: visible; width: 100%"></div>
+                    </div>
+                </nav>
+                <nav v-else aria-label="Page Navigation">
                     <ul class="pagination">
                         <li class="page-item" href="#!" aria-label="Previous" v-on:click="PageChange(page.current-1)">
                             <a class="page-link" href="#!">&laquo;</a>

@@ -91,15 +91,15 @@ namespace Arkiv.Data
                         List<T> items = new List<T>();
                         while (reader.Read())
                         {
-                            T item = await Task.Run(async () =>
-                            {
+
                                 T instance = (T)Activator.CreateInstance(type);
                                 foreach (string prop in properties)
+                                {
+                                try
                                 {
                                     int index = reader.GetOrdinal(prop);
                                     Type dataType = reader.GetFieldType(index);
                                     TypeConverter converter = TypeDescriptor.GetConverter(dataType);
-
                                     if (converter.IsValid(reader[prop]))
                                     {
                                         try
@@ -109,21 +109,22 @@ namespace Arkiv.Data
                                         }
                                         catch (Exception)
                                         {
-
                                         }
                                     }
                                     else
                                     {
-                                        if(!await reader.IsDBNullAsync(index))
+                                        if (!await reader.IsDBNullAsync(index))
                                         {
                                             type.GetProperty(prop).SetValue(instance, reader[prop]);
                                         }
                                     }
                                 }
-                                return instance;
-                            });
+                                catch (Exception)
+                                {
 
-                            items.Add(item);
+                                }
+                                }
+                                items.Add(instance);
                         }
                         #endregion
 

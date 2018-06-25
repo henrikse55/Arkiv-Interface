@@ -14,5 +14,7 @@ namespace Arkiv.Models
         public bool adminPanelAccess { get; set; }
 
         public Dictionary<string, string> FullColumnNames { get; set; }
+
+        public IEnumerable<ColumnNameModel> ColumnsNotOnBlacklist { get; set; }
     }
 }

@@ -13,6 +13,7 @@ using System;
 using System.DirectoryServices.AccountManagement;
 using System.Text;
 using Newtonsoft.Json;
+using System.Runtime.InteropServices;
 
 namespace Arkiv.Controllers
 {
@@ -34,7 +35,7 @@ namespace Arkiv.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
+            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMNS.COLUMN_NAME FROM ColumnBlacklist INNER JOIN INFORMATION_SCHEMA.COLUMNS ON [Column] != COLUMNS.COLUMN_NAME Where TABLE_NAME = 'arkiv'");
 
             List<SelectListItem> ColumnNamesSelectList = new List<SelectListItem>();
             
@@ -67,8 +68,7 @@ namespace Arkiv.Controllers
                 sql.LogAsync("Filter Applied", DateTime.Now, User.Identity.Name, parameters);
             }
 
-
-            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS Where TABLE_NAME = 'arkiv'");
+            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMNS.COLUMN_NAME FROM ColumnBlacklist INNER JOIN INFORMATION_SCHEMA.COLUMNS ON [Column] != COLUMNS.COLUMN_NAME Where TABLE_NAME = 'arkiv'");
 
             List<SelectListItem> ColumnNamesSelectList = ColumnNames.Select(x => new SelectListItem() { Value = x.COLUMN_NAME, Text = x.COLUMN_NAME}).ToList();
 
@@ -90,7 +90,7 @@ namespace Arkiv.Controllers
             string WhereClause = "WHERE (";
             List<(string, object)> ParamList = new List<(string, object)>();
 
-            if (SortedModels.Count(x => x.Contains('*')) == 0)
+            if (SortedModels.Count() > 0)
             {
                 for (int i = 0; i < SortedModels.Count(); i++)
                 {
@@ -171,16 +171,18 @@ namespace Arkiv.Controllers
             int max = pages * 50;
             int min = (max - 50 >= 0 ? max-50 : 0);
 
+            string ColumnString = string.Empty;
+            IEnumerable<ColumnNameModel> ColumnNamesForQuery = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMNS.COLUMN_NAME FROM ColumnBlacklist INNER JOIN INFORMATION_SCHEMA.COLUMNS ON [Column] != COLUMNS.COLUMN_NAME Where TABLE_NAME = 'arkiv'");
+
+            string a = ColumnNamesForQuery.ElementAt(ColumnNamesForQuery.Count() - 1).COLUMN_NAME;
+
+            ColumnNamesForQuery.ToList().ForEach(column => {
+                ColumnString += "[" + column.COLUMN_NAME + "]" + (column.COLUMN_NAME.Equals(ColumnNamesForQuery.ElementAt(ColumnNamesForQuery.Count() - 1).COLUMN_NAME) ? " " : ", ");
+
+            });
+
             string query = @"SELECT 
-                           [Id], [STAMP], [FILTYP], [MODE],
-                           [DOCTYP], [DOCDATE], [DOCNO], [ORNO],
-                           [IVDT], [IVNO], [CUNO], [CUNM],
-                           [PYNO], [ORDT], [DUDT], [DLDT],
-                           [YREF], [CUOR], [CUDT], [OREF],
-                           [DLIX], [ADID], [ADNM], [ORTO],
-                           [CUCD], [CONO], [FACI], [DEVI],
-                           [WHLO], [PRTDATE], [MVXPRT], [TOMAIL],
-                           [CCMAIL], [SUNM], [PUON], [PUDT], [PATH]
+                           {ColumnString}
                            FROM(
                                SELECT *, ROW_NUMBER() OVER(ORDER BY Id) AS RowNumber
                                FROM arkiv {where}
@@ -189,7 +191,8 @@ namespace Arkiv.Controllers
                             .Replace("{min}", min.ToString())
                             .Replace("{max}", max.ToString())
                             .Replace("{where}", WhereClause)
-                            .Replace("{order}", OrderByClause);
+                            .Replace("{order}", OrderByClause)
+                            .Replace("{ColumnString}", ColumnString);
 
             string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " + WhereClause;
 
@@ -213,7 +216,7 @@ namespace Arkiv.Controllers
                 return Json("No Match");
             }
 
-            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = data, pages = pageCount, FullColumnNames = ColumnDictionary });
+            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = data, pages = pageCount, FullColumnNames = ColumnDictionary, ColumnsNotOnBlacklist = ColumnNamesForQuery });
         }
 
         [HttpPost]
@@ -310,16 +313,22 @@ namespace Arkiv.Controllers
         private IEnumerable<string> GetUserGroups()
         {
             PrincipalContext context = new PrincipalContext(ContextType.Domain);
-            UserPrincipal userPrincipal = UserPrincipal.FindByIdentity(context, User.Identity.Name.Split("\\")[1]);
-
-            if (userPrincipal != null)
+            try
             {
-                PrincipalSearchResult<Principal> groups = userPrincipal.GetAuthorizationGroups();
-                var names = groups.AsParallel().Where(x => x is GroupPrincipal).Select(x => x.Name ?? "");
+                UserPrincipal userPrincipal = UserPrincipal.FindByIdentity(context, User.Identity.Name.Split("\\")[1]);
 
-                return names;
+                if (userPrincipal != null)
+                {
+                    PrincipalSearchResult<Principal> groups = userPrincipal.GetAuthorizationGroups();
+                    var names = groups.AsParallel().Where(x => x is GroupPrincipal).Select(x => x.Name ?? "");
+
+                    return names;
+                }
+                return null;
+            }catch(COMException)
+            {
+                return new List<string>();
             }
-            return null;
         }
 
         private bool IsInGroup(string user) => GetUserGroups().Any(x => x.Contains(user));

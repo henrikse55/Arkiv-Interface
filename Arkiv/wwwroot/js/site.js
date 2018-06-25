@@ -11,7 +11,8 @@
             current: 0
         },
         orderBy: 'Ascending',
-        colName: ''
+        colName: 'Id',
+        PagingBarDisabled: false
     },
     methods: {
         ready: function () {
@@ -89,8 +90,10 @@
 
             $('#ApplyButton').attr('disabled', true); //Disable ApplyButton while the data is being processed
             $('#ProgressBar').css({ 'visibility': 'visible', 'width': '100%' });
-            $('#TableContainer').html('');
 
+            this.PagingBarDisabled = true;
+
+            $('#paging').attr('disabled', true); //Disable ApplyButton while the data is being processed
 
             let FinalFilters = [];
 
@@ -150,6 +153,8 @@
                         $('#ApplyButton').removeAttr('disabled'); //Re-enable the Apply button
                         $('#ProgressBar').css({ 'visibility': 'hidden', 'width': '100%' });
                     }
+
+                    this.PagingBarDisabled = false;
                     this.tableLoader = false;
                 },
                 error: (jqXHR, exception) => {
