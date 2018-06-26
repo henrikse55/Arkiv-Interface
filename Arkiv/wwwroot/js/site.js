@@ -91,7 +91,9 @@
             $('#ApplyButton').attr('disabled', true); //Disable ApplyButton while the data is being processed
             $('#ProgressBar').css({ 'visibility': 'visible', 'width': '100%' });
 
-            this.PagingBarDisabled = true;
+            if (isPageChange) {
+                this.PagingBarDisabled = true;
+            }
 
             $('#paging').attr('disabled', true); //Disable ApplyButton while the data is being processed
 

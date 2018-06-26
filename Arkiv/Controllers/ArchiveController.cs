@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Collections.Generic;
-using System.Security.Principal;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using Arkiv.Data.Filter;
@@ -35,16 +34,15 @@ namespace Arkiv.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMNS.COLUMN_NAME FROM ColumnBlacklist INNER JOIN INFORMATION_SCHEMA.COLUMNS ON [Column] != COLUMNS.COLUMN_NAME Where TABLE_NAME = 'arkiv'");
+            //
+            //Get all columns that are not blacklisted, and put their names into 'ColumnNameSelectList'
+            //
+            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMNS.COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'arkiv' AND COLUMNS.COLUMN_NAME NOT IN (SELECT ColumnBlacklist.[Column] FROM ColumnBlacklist) ");
+            List<SelectListItem> ColumnNamesSelectList = ColumnNames.Select(x => new SelectListItem() { Value = x.COLUMN_NAME, Text = x.COLUMN_NAME }).ToList();
 
-            List<SelectListItem> ColumnNamesSelectList = new List<SelectListItem>();
-            
-            foreach(ColumnNameModel column in ColumnNames)
-            {
-                ColumnNamesSelectList.Add(new SelectListItem { Value = column.COLUMN_NAME, Text = column.COLUMN_NAME });
-            }
-
-            //This section checks if the current user has access to the admin panel
+            //
+            //Checks if the current user has access to the admin panel
+            //
             bool AdminPanelAccess = false;
 
             Configuration.AdminGroups.ToList().ForEach(group => {
@@ -62,45 +60,47 @@ namespace Arkiv.Controllers
         [Route("/Archive/GetTable")]
         public async Task<IActionResult> GetTable(FilterModel[] Filters, OrderDataModel OrderData, int pages)
         {
+            //
+            //Create log entry if a filter has been applied
+            //
             if (Filters != null)
             {
                 string parameters = JsonConvert.SerializeObject(new { Filters, OrderData });
                 sql.LogAsync("Filter Applied", DateTime.Now, User.Identity.Name, parameters);
             }
 
-            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMNS.COLUMN_NAME FROM ColumnBlacklist INNER JOIN INFORMATION_SCHEMA.COLUMNS ON [Column] != COLUMNS.COLUMN_NAME Where TABLE_NAME = 'arkiv'");
-
+            //
+            //Get all columns that are not blacklisted, and put their names into 'ColumnNameSelectList'
+            //
+            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMNS.COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'arkiv' AND COLUMNS.COLUMN_NAME NOT IN (SELECT ColumnBlacklist.[Column] FROM ColumnBlacklist) ");
             List<SelectListItem> ColumnNamesSelectList = ColumnNames.Select(x => new SelectListItem() { Value = x.COLUMN_NAME, Text = x.COLUMN_NAME}).ToList();
 
-            ////Add every column from the database to list
-            //foreach (ColumnNameModel column in ColumnNames)
-            //{
-            //    ColumnNamesSelectList.Add(new SelectListItem { Value = column.COLUMN_NAME, Text = column.COLUMN_NAME });
-            //}
-
-            #region Active Directory account cheching
+            //
+            //Gets all the DEVI values from the groups that the current user is a member of, and applies logic to SQL query accordingly
+            //
+            #region Active Directory account checking
             bool ClearWhereFlag = false;
 
-            IEnumerable<ActiveModel> AdModels = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
+            IEnumerable<ActiveModel> ActiveDirectoryGroupModel = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
 
-            IEnumerable<string> groups = GetUserGroups();
+            IEnumerable<string> Groups = GetUserGroups();
 
-            IEnumerable<string> SortedModels = (from model in AdModels where groups.Any(g => g == model.Group) select model.DEVI);
+            IEnumerable<string> SortedGroups = (from model in ActiveDirectoryGroupModel where Groups.Any(g => g == model.Group) select model.DEVI);
 
             string WhereClause = "WHERE (";
             List<(string, object)> ParamList = new List<(string, object)>();
 
-            if (SortedModels.Count() > 0)
+            if (SortedGroups.Count() > 0)
             {
-                for (int i = 0; i < SortedModels.Count(); i++)
+                for (int i = 0; i < SortedGroups.Count(); i++)
                 {
-                    if (i < SortedModels.Count() && i > 0)
+                    if (i < SortedGroups.Count() && i > 0)
                     {
                         WhereClause += " OR ";
                     }
-                    WhereClause += "DEVI = @DEVI" + i;
-                    ParamList.Add(("@DEVI" + i, SortedModels.ElementAt(i)));
 
+                    WhereClause += "DEVI = @DEVI" + i;
+                    ParamList.Add(("@DEVI" + i, SortedGroups.ElementAt(i)));
                 }
 
                 WhereClause += ")";
@@ -111,9 +111,13 @@ namespace Arkiv.Controllers
             }
             #endregion
 
+            //
+            //Constructs the WhereClause
+            //
+            #region WhereClause
             if (Filters.Count() > 0)
             {
-                if (SortedModels.Count() != 0)
+                if (SortedGroups.Count() != 0)
                     WhereClause += " AND ";
 
                 object locker = new object();
@@ -146,11 +150,17 @@ namespace Arkiv.Controllers
                     }
                 });
 
-            } else if(ClearWhereFlag)
+            }
+            else if(ClearWhereFlag)
             {
                     WhereClause = ""; //If there is no Filters, remove the WHERE keyword from WhereClause
             }
+            #endregion
 
+            //
+            //Constructs the OrderByClause
+            //
+            #region OrderByClause
             string OrderByClause = "";
 
             if(OrderData.Order != null)
@@ -164,22 +174,35 @@ namespace Arkiv.Controllers
                     OrderByClause += " ORDER BY " + OrderData.Column + " ASC";
                 }
             }
+            #endregion
 
+            //
+            //Paging math
+            //
+            #region Paging
             if (pages == 0)
                 pages = 1;
 
             int max = pages * 50;
             int min = (max - 50 >= 0 ? max-50 : 0);
 
-            string ColumnString = string.Empty;
-            IEnumerable<ColumnNameModel> ColumnNamesForQuery = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMNS.COLUMN_NAME FROM ColumnBlacklist INNER JOIN INFORMATION_SCHEMA.COLUMNS ON [Column] != COLUMNS.COLUMN_NAME Where TABLE_NAME = 'arkiv'");
+            string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " + WhereClause;
 
-            string a = ColumnNamesForQuery.ElementAt(ColumnNamesForQuery.Count() - 1).COLUMN_NAME;
+            int pageCount = (int)(await sql.GetDataRawAsync(countQuery, ParamList.ToArray())).Rows[0][0];
+            #endregion
+
+            //
+            //Create a string containing all the names of the columns that are not blacklisted
+            //
+            #region ColumnString
+            string ColumnString = string.Empty;
+            IEnumerable<ColumnNameModel> ColumnNamesForQuery = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMNS.COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'arkiv' AND COLUMNS.COLUMN_NAME NOT IN (SELECT ColumnBlacklist.[Column] FROM ColumnBlacklist) ");
 
             ColumnNamesForQuery.ToList().ForEach(column => {
                 ColumnString += "[" + column.COLUMN_NAME + "]" + (column.COLUMN_NAME.Equals(ColumnNamesForQuery.ElementAt(ColumnNamesForQuery.Count() - 1).COLUMN_NAME) ? " " : ", ");
 
             });
+            #endregion
 
             string query = @"SELECT 
                            {ColumnString}
@@ -194,14 +217,13 @@ namespace Arkiv.Controllers
                             .Replace("{order}", OrderByClause)
                             .Replace("{ColumnString}", ColumnString);
 
-            string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " + WhereClause;
-
-            int pageCount = (int)(await sql.GetDataRawAsync(countQuery, ParamList.ToArray())).Rows[0][0];
-
             IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>(query, ParamList.ToArray());
 
+            //
+            //Add each available column to a Dictionary where the TKey is the Short form of the column name and the TValue is the full form
+            //
+            #region ColumnDictionary
             IEnumerable<ColumnDefinitionModel> ColumnDefinitions = await sql.SelectDataAsync<ColumnDefinitionModel>("SELECT * FROM ColumnDefinition");
-
             Dictionary<string, string> ColumnDictionary = new Dictionary<string, string>();
 
             ColumnNamesSelectList.ForEach(item =>
@@ -209,6 +231,7 @@ namespace Arkiv.Controllers
                 string value = item.Value;
                 ColumnDictionary.Add(value, ColumnDefinitions.Any(x => x.ShortName.Equals(value)) ? ColumnDefinitions.Where(x => x.ShortName.Equals(value)).First().FullName : value);
             });
+            #endregion
 
             //If there is no results, return the json object, "No Match"
             if (data.Count() == 0)
