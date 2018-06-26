@@ -5,15 +5,7 @@
 
 
 <div class="container-fluid" id="adminpanel">
-    <div class="row justify-content-md-center">
-        @*<div class="col-md-2">
-            <div class="border border-dark rounded">
-                <h5 class="border border-dark border-top-0 border-left-0 border-right-0 text-center">Navigation?</h5>
-                <nav class="nav flex-column">
-                    <a class="nav-link" asp-action="Admin" asp-controller="Archive">Test</a>
-                </nav>
-            </div>
-        </div>*@
+    <div class="row justify-content-end">
         <div class="col-md-4">
             <div class="text-center">
                 <h5>Active Directory References</h5>
@@ -52,6 +44,9 @@
                 </tbody>
             </table>
             <p class="text-muted" style="font-size: 12px">Use * to give access to all</p>
+        </div>
+        <div class="col-md-4">
+                <a asp-action="index" asp-controller="Archive" class="btn btn-outline-primary">Back</a>
         </div>
     </div>
     <div class="row justify-content-center">

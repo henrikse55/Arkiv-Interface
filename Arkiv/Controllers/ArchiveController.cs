@@ -98,7 +98,7 @@ namespace Arkiv.Controllers
                         WhereClause.Append(" OR ");
                     }
 
-                    WhereClause += "DEVI = @DEVI" + i;
+                    WhereClause.Append("DEVI = @DEVI" + i);
                     ParamList.Add(("@DEVI" + i, SortedGroups.ElementAt(i)));
                 }
 
@@ -113,7 +113,7 @@ namespace Arkiv.Controllers
             #region Filtering
             if (Filters.Count() > 0)
             {
-                if (SortedModels.Count() != 0)
+                if (SortedGroups.Count() != 0)
                     WhereClause.Append(" AND ");
 
                 (string, (string, object)[]) items = await GetFiltersToQueriesAsync(Filters);
@@ -236,7 +236,6 @@ namespace Arkiv.Controllers
                 string value = x.item.COLUMN_NAME;
                 ColumnsforDictionary[x.index] = new KeyValuePair<string, string>(value, ColumnDefinitions.Any(def => def.ShortName.Equals(value)) ? ColumnDefinitions.Where(def => def.ShortName.Equals(value)).First().FullName : value);
             });
-            #endregion
 
             return new Dictionary<string, string>(ColumnsforDictionary);
         } 
