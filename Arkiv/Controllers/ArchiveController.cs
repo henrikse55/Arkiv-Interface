@@ -35,15 +35,12 @@ namespace Arkiv.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMNS.COLUMN_NAME FROM ColumnBlacklist INNER JOIN INFORMATION_SCHEMA.COLUMNS ON [Column] != COLUMNS.COLUMN_NAME Where TABLE_NAME = 'arkiv'");
+            string ColumnNamesQuery = @"SELECT * FROM ColumnDefinition WHERE ShortName NOT IN (SELECT [Column] FROM ColumnBlacklist)";
 
-            List<SelectListItem> ColumnNamesSelectList = new List<SelectListItem>();
+            IEnumerable<ColumnDefinitionModel> ColumnNames = await sql.SelectDataAsync<ColumnDefinitionModel>(ColumnNamesQuery);
+
+            List<SelectListItem> ColumnNamesSelectList = ColumnNames.Select(x => new SelectListItem() { Value = x.FullName, Text = x.FullName }).ToList();
             
-            foreach(ColumnNameModel column in ColumnNames)
-            {
-                ColumnNamesSelectList.Add(new SelectListItem { Value = column.COLUMN_NAME, Text = column.COLUMN_NAME });
-            }
-
             //This section checks if the current user has access to the admin panel
             bool AdminPanelAccess = false;
 
@@ -62,27 +59,25 @@ namespace Arkiv.Controllers
         [Route("/Archive/GetTable")]
         public async Task<IActionResult> GetTable(FilterModel[] Filters, OrderDataModel OrderData, int pages)
         {
+            #region Logging
             if (Filters != null && Filters.Count() == 0)
             {
                 string parameters = JsonConvert.SerializeObject(new { Filters, OrderData });
                 sql.LogAsync("Filter Applied", DateTime.Now, User.Identity.Name, parameters);
-            }
+            } 
+            #endregion
 
+            StringBuilder WhereClause = new StringBuilder("WHERE (");
+
+            #region Initial Column Data
             string ColumnNamesQuery = @"SELECT COLUMNS.COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'arkiv' AND COLUMN_NAME NOT IN (
                                         	SELECT [Column] FROM ColumnBlacklist
                                         )";
 
             IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>(ColumnNamesQuery);
 
-            List<SelectListItem> ColumnNamesSelectList = ColumnNames.Select(x => new SelectListItem() { Value = x.COLUMN_NAME, Text = x.COLUMN_NAME}).ToList();
-
-            ////Add every column from the database to list
-            //foreach (ColumnNameModel column in ColumnNames)
-            //{
-            //    ColumnNamesSelectList.Add(new SelectListItem { Value = column.COLUMN_NAME, Text = column.COLUMN_NAME });
-            //}
-
-            StringBuilder WhereClause = new StringBuilder("WHERE (");
+            List<SelectListItem> ColumnNamesSelectList = ColumnNames.Select(x => new SelectListItem() { Value = x.COLUMN_NAME, Text = x.COLUMN_NAME }).ToList(); 
+            #endregion
 
             #region Active Directory account cheching
             bool ClearWhereFlag = false;
@@ -116,55 +111,34 @@ namespace Arkiv.Controllers
             }
             #endregion
 
+            #region Filtering
             if (Filters.Count() > 0)
             {
                 if (SortedModels.Count() != 0)
                     WhereClause.Append(" AND ");
 
-                object locker = new object();
-                Filters.AsParallel().ForAll(Filter =>
-                {
-                    switch (Filter.Type)
-                    {
-                        case "Single":
-                            //Check if the current item is the last item
-                            lock (locker)
-                            {
-                                WhereClause.Append(Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
-                            }
+                (string, (string, object)[]) items = await GetFiltersToQueriesAsync(Filters);
 
-                            ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), "%" + Filter.Value.One + "%")); 
-                            break;
-                        case "Range":
-                            //Check if the current item is the last item
-                            lock (locker)
-                            {
-                                WhereClause.Append(Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
-                            }
+                WhereClause.Append(items.Item1);
+                ParamList.AddRange(items.Item2);
 
-                            ParamList.AddRange(new(string, object)[]
-                            {
-                                ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
-                                ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
-                            }); 
-                            break;
-                    }
-                });
-
-            } else if(ClearWhereFlag)
-            {
-                    WhereClause.Clear(); //If there is no Filters, remove the WHERE keyword from WhereClause
             }
+            else if (ClearWhereFlag)
+            {
+                WhereClause.Clear(); //If there is no Filters, remove the WHERE keyword from WhereClause
+            } 
+            #endregion
 
+            #region Order By Clause
             string OrderByClause = "";
 
-            if(OrderData.Order != null)
+            if (OrderData.Order != null)
             {
                 if (OrderData.Order.Equals("Descending"))
                 {
                     OrderByClause += " ORDER BY " + OrderData.Column + " DESC OFFSET {off} ROWS FETCH NEXT 50 ROWS ONLY ";
                 }
-                else if(OrderData.Order.Equals("Ascending"))
+                else if (OrderData.Order.Equals("Ascending"))
                 {
                     OrderByClause += " ORDER BY " + OrderData.Column + " ASC OFFSET {off} ROWS FETCH NEXT 50 ROWS ONLY ";
                 }
@@ -173,44 +147,30 @@ namespace Arkiv.Controllers
             {
                 OrderByClause += " ORDER BY [Id] ASC OFFSET {off} ROWS FETCH NEXT 50 ROWS ONLY ";
             }
+            #endregion
 
-            if (pages == 0)
-                pages = 1;
-
-            int max = pages * 50;
-            int min = (max - 50 >= 0 ? max-50 : 0);
-
+            #region Column Appendage
             string ColumnString = string.Empty;
-            IEnumerable<ColumnNameModel> ColumnNamesForQuery = await sql.SelectDataAsync<ColumnNameModel>("SELECT COLUMNS.COLUMN_NAME FROM ColumnBlacklist INNER JOIN INFORMATION_SCHEMA.COLUMNS ON [Column] != COLUMNS.COLUMN_NAME Where TABLE_NAME = 'arkiv'");
 
-            string a = ColumnNamesForQuery.Last().COLUMN_NAME;
+            ColumnNames.ToList().ForEach(column =>
+            {
+                ColumnString += "[" + column.COLUMN_NAME + "]" + (column.COLUMN_NAME.Equals(ColumnNames.Last().COLUMN_NAME) ? " " : ", ");
 
-            ColumnNamesForQuery.ToList().ForEach(column => {
-                ColumnString += "[" + column.COLUMN_NAME + "]" + (column.COLUMN_NAME.Equals(ColumnNamesForQuery.Last().COLUMN_NAME) ? " " : ", ");
+            }); 
+            #endregion
 
-            });
-
+            #region Arkiv Data Query
             string DataQueryV2 = @"SELECT {ColumnString}
                                    FROM arkiv {where} {order}"
-                                   .Replace("{ColumnString}", ColumnString)
-                                   .Replace("{where}", WhereClause.ToString())
-                                   .Replace("{order}", OrderByClause).Replace("{off}", (pages * 50).ToString());
+                           .Replace("{ColumnString}", ColumnString)
+                           .Replace("{where}", WhereClause.ToString())
+                           .Replace("{order}", OrderByClause).Replace("{off}", (pages * 50).ToString());
 
             string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " + WhereClause.ToString();
             int pageCount = (int)(await sql.GetDataRawAsync(countQuery, ParamList.ToArray())).Rows[0][0];
 
-
-            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>(DataQueryV2, ParamList.ToArray());
-
-            IEnumerable<ColumnDefinitionModel> ColumnDefinitions = await sql.SelectDataAsync<ColumnDefinitionModel>("SELECT * FROM ColumnDefinition");
-
-            KeyValuePair<string, string>[] ColumnsforDictionary = new KeyValuePair<string, string>[ColumnNamesSelectList.Count()];
-
-            ColumnNamesSelectList.Select((item, index) => (item, index)).AsParallel().ForAll(x =>
-            {
-                string value = x.item.Value;
-                ColumnsforDictionary[x.index] = new KeyValuePair<string, string>(value, ColumnDefinitions.Any(def => def.ShortName.Equals(value)) ? ColumnDefinitions.Where(def => def.ShortName.Equals(value)).First().FullName : value);
-            });
+            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>(DataQueryV2, ParamList.ToArray()); 
+            #endregion
 
             //If there is no results, return the json object, "No Match"
             if (data.Count() == 0)
@@ -218,14 +178,68 @@ namespace Arkiv.Controllers
                 return Json("No Match");
             }
 
-            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = data, pages = pageCount, FullColumnNames = new Dictionary<string, string>(ColumnsforDictionary), ColumnsNotOnBlacklist = ColumnNamesForQuery });
+            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = data, pages = pageCount, FullColumnNames = await GetColumnDefinitions(ColumnNames), ColumnsNotOnBlacklist = ColumnNames });
+        }
+        #endregion
+
+        #region Private Methods
+        private async Task<(string, (string, object)[])> GetFiltersToQueriesAsync(FilterModel[] Filters)
+        {
+            StringBuilder WhereClause = new StringBuilder();
+            List<(string, object)> ParamList = new List<(string, object)>();
+
+            string ColumnDefQuery = @"SELECT * FROM ColumnDefinition WHERE ShortName NOT IN (SELECT [Column] FROM ColumnBlacklist)";
+            IEnumerable<ColumnDefinitionModel> columnDefinitions = await sql.SelectDataAsync<ColumnDefinitionModel>(ColumnDefQuery);
+
+            object locker = new object();
+            Filters.AsParallel().ForAll(Filter =>
+            {
+                Filter.Name = columnDefinitions.Where(x => x.FullName == Filter.Name).Select(x => x.ShortName).First();
+
+                switch (Filter.Type)
+                {
+                    case "Single":
+                        //Check if the current item is the last item
+                        lock (locker)
+                        {
+                            WhereClause.Append(Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
+                        }
+
+                        ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), "%" + Filter.Value.One + "%"));
+                        break;
+                    case "Range":
+                        //Check if the current item is the last item
+                        lock (locker)
+                        {
+                            WhereClause.Append(Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
+                        }
+
+                        ParamList.AddRange(new(string, object)[]
+                        {
+                                ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
+                                ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
+                        });
+                        break;
+                }
+            });
+
+            return (WhereClause.ToString(), ParamList.ToArray());
         }
 
-        [HttpPost]
-        public IActionResult GetFilterPartial(string SelectedColumn)
+        private async Task<Dictionary<string, string>> GetColumnDefinitions(IEnumerable<ColumnNameModel> columnNames)
         {
-            return PartialView("FilterPartial", SelectedColumn);
-        }
+            IEnumerable<ColumnDefinitionModel> ColumnDefinitions = await sql.SelectDataAsync<ColumnDefinitionModel>("SELECT * FROM ColumnDefinition");
+
+            KeyValuePair<string, string>[] ColumnsforDictionary = new KeyValuePair<string, string>[columnNames.Count()];
+
+            columnNames.Select((item, index) => (item, index)).AsParallel().ForAll(x =>
+            {
+                string value = x.item.COLUMN_NAME;
+                ColumnsforDictionary[x.index] = new KeyValuePair<string, string>(value, ColumnDefinitions.Any(def => def.ShortName.Equals(value)) ? ColumnDefinitions.Where(def => def.ShortName.Equals(value)).First().FullName : value);
+            });
+
+            return new Dictionary<string, string>(ColumnsforDictionary);
+        } 
         #endregion
 
         #region PDF
