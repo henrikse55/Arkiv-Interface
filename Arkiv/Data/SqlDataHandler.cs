@@ -91,10 +91,9 @@ namespace Arkiv.Data
                         List<T> items = new List<T>();
                         while (reader.Read())
                         {
-
-                                T instance = (T)Activator.CreateInstance(type);
-                                foreach (string prop in properties)
-                                {
+                            T instance = (T)Activator.CreateInstance(type);
+                            foreach (string prop in properties)
+                            {
                                 try
                                 {
                                     int index = reader.GetOrdinal(prop);
@@ -123,8 +122,8 @@ namespace Arkiv.Data
                                 {
 
                                 }
-                                }
-                                items.Add(instance);
+                            }
+                            items.Add(instance);
                         }
                         #endregion
 

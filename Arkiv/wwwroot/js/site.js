@@ -30,7 +30,7 @@
             });
         },
         GetSelectedItem: function () {
-            let Item = this.$data.selectedItem;
+            let Item = this.selectedItem;
             this.filters.push(Item);
         },
         PostFilters: function (isPageChange) {
@@ -137,10 +137,12 @@
                 }
             }
 
+            $('#TableContainer').html("");
+
             $.ajax({
                 type: 'POST',
                 url: '/Archive/GetTable/',
-                data: { Filters: FinalFilters, OrderData: { Order: this.orderBy, Column: this.colName }, pages: this.page.current + 1},
+                data: { Filters: FinalFilters, OrderData: { Order: this.orderBy, Column: this.colName }, pages: this.page.current},
                 success: (data) => {
                     if (data !== 'No Match') {
                         $('#TableContainer').html(data);
