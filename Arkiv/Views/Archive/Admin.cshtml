@@ -7,6 +7,8 @@
 <div class="container-fluid" id="adminpanel">
     <div class="row justify-content-end">
         <div class="col-md-4">
+
+            <!-- #region Active Directory Group -->
             <div class="text-center">
                 <h5>Active Directory References</h5>
             </div>
@@ -30,6 +32,7 @@
                 </tbody>
 
                 <!-- #endregion -->
+                <!-- #region Active Directory Group Entries -->
                 <tbody>
                     <tr v-for="ac in groups">
                         <td>{{ ac.group }}</td>
@@ -42,15 +45,24 @@
                         <td class="text-center"><button class="btn btn-outline-primary" v-on:click="AddADE"><i class="fas fa-plus"></i></button></td>
                     </tr>
                 </tbody>
+                <!-- #endregion -->
+
             </table>
             <p class="text-muted" style="font-size: 12px">Use * to give access to all</p>
+            <!-- #endregion -->
+
         </div>
+
+        <!-- #region Back button - Archive->Index -->
         <div class="col-md-4">
-                <a asp-action="index" asp-controller="Archive" class="btn btn-outline-primary">Back</a>
+            <a asp-action="index" asp-controller="Archive" class="btn btn-outline-primary">Back</a>
         </div>
+        <!-- #endregion -->
     </div>
     <div class="row justify-content-center">
         <div class="col-md-3 border">
+            
+            <!-- #region Blacklist -->
             <div class="text-center">
                 <h5>Column Blacklist</h5>
             </div>
@@ -62,6 +74,7 @@
                     </tr>
                 </thead>
 
+                <!-- #region Loading placeholder -->
                 <tbody v-if="loading.blacklist">
                     <tr><td></td><td></td></tr>
                     <tr><td></td><td></td></tr>
@@ -69,6 +82,9 @@
                     <tr><td></td><td></td></tr>
                     <tr><td></td><td></td></tr>
                 </tbody>
+                <!-- #endregion -->
+                
+                <!-- #region Blacklist - entries -->
                 <tbody>
                     <tr v-for="bl in blacklist">
                         <td>{{ bl.column }}</td>
@@ -76,11 +92,16 @@
                     </tr>
 
                     <tr>
-                        <td><input type="text" class="form-control" v-model="model.blacklist"/></td>
+                        <td><input type="text" class="form-control" v-model="model.blacklist" /></td>
                         <td class="text-center"><button class="btn btn-outline-primary" v-on:click="AddBlacklist"><i class="fas fa-plus"></i></button></td>
                     </tr>
                 </tbody>
+                <!-- #endregion -->
+
             </table>
+            <!-- #endregion -->
+            
+            <!-- #region Pagination - Blacklist -->
             <div v-if="pageBlacklist.count != 0" class="col-md-5">
                 <div class="justify-content-center">
                     <nav class="">
@@ -98,6 +119,7 @@
                     </nav>
                 </div>
             </div>
+            <!-- #endregion -->
         </div>
         <div class="col-md-5 border">
             <div class="text-center">
@@ -112,7 +134,7 @@
                         <th>Parameters</th>
                     </tr>
                 </thead>
-                
+
                 <!-- #region loading placeholder -->
                 <tbody v-if="loading.groups">
                     <tr><td></td><td></td><td></td><td></td></tr>
@@ -123,7 +145,8 @@
                     <tr><td></td><td></td><td></td><td></td></tr>
                 </tbody>
                 <!-- #endregion -->
-                
+
+                <!-- #region Loggin Entries -->
                 <tbody>
                     <tr v-for="log in logs" class="text-center">
                         <td>{{ log.action }}</td>
@@ -132,7 +155,11 @@
                         <td><a class="btn btn-outline-info">View</a></td>
                     </tr>
                 </tbody>
+                <!-- #endregion -->
+
             </table>
+
+            <!-- #region Pagination - Logging -->
             <div class="col-md-5">
                 <div class="justify-content-center">
                     <nav class="">
@@ -150,6 +177,7 @@
                     </nav>
                 </div>
             </div>
+            <!-- #endregion -->
         </div>
     </div>
 </div>

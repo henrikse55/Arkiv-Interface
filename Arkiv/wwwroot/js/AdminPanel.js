@@ -31,6 +31,7 @@
         }
     },
     methods: {
+        //init function - get's initial data
         init: function () {
             $.get("/api/active/list", (data) => {
                 this.groups = data.groups;
@@ -42,10 +43,12 @@
             this.PageChange(0);
             this.PageChangeBlacklist(0);
         },
+        //Logger Page change functiong
         PageChange: function (offset)
         {
             this.page.current = offset;
 
+            //Get for the new list of logs to show
             $.get("/api/active/logs", { offset: this.page.current * 25 }, (data) => {
                 this.page.count = (data.count / 25);
                 this.logs = data.logs;
@@ -69,6 +72,7 @@
 
         },
 
+        //does the same as preveus but for the blacklist
         PageChangeBlacklist: function (offset) {
             this.pageBlacklist.current = offset;
 
@@ -94,6 +98,7 @@
 
 
         },
+        //Delete active directory group entry
         DeleteADE: function (id)
         {
             $.post("/api/active/deleteADE?id=" + id, (data) =>
@@ -112,6 +117,7 @@
                 }
             });
         },
+        //Add active directory group entry
         AddADE: function () {
             $.post("/api/active/addEntry", this.model.ADR, (data) => {
                 if (data != null) {
@@ -120,6 +126,7 @@
                 }
             });
         },
+        //add blacklist entry
         AddBlacklist: function () {
             $.post("/api/active/addBlacklist", { blacklist: this.model.blacklist }, (data) => {
                 if (data != null) {
@@ -128,6 +135,7 @@
                 }
             });
         },
+        //remove blacklist entry
         RemoveBlacklist: function (blacklist) {
             $.post("/api/active/deleteBlacklist", { blacklist }, (data) => {
                 if (data) {

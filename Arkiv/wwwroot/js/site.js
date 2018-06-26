@@ -15,6 +15,7 @@
         PagingBarDisabled: false
     },
     methods: {
+        //Init function - get's initial table
         ready: function () {
             $.ajax({
                 type: 'POST',
@@ -137,8 +138,9 @@
                 }
             }
 
-            $('#TableContainer').html("");
+            $('#TableContainer').html(""); // clear the contents of the current table
 
+            //Make a post to the GetTable function in AcrhiveController
             $.ajax({
                 type: 'POST',
                 url: '/Archive/GetTable/',
@@ -167,23 +169,30 @@
                 }
             });
         },
+        //compute the pages
         CalculatePages: function ()
         {
-            this.page.pages = parseInt($("#pages").html());
+            this.page.pages = parseInt($("#pages").html()); // Bad/lazy fix for getting page count
 
             this.page.numbers = [];
+
+            //Loop through and make up to 5 pages previus to the active one
             let start = (this.page.current - 5);
             for (let i = start >= 0 ? start : 0; i < this.page.current; i++)
             {
                 this.page.numbers.push({item: i, active: ""});
             }
 
+            //The active page
             this.page.numbers.push({ item: this.page.current, active: "active" });
+
+            //loop though and make up to 5 pages in front to the active on
             for (let i = this.page.current + 1; i < this.page.current + 6; i++) {
                 if (i <= this.page.pages)
                     this.page.numbers.push({ item: i, active: "" });
             }
         },
+        //Initial Page change function
         PageChange: function (page)
         {
             this.page.current = page;
@@ -193,6 +202,7 @@
     }
 });
 
+//Filter template
 Vue.component('filter-template', {
     props: ['name'],
     data: function() {
@@ -205,6 +215,7 @@ Vue.component('filter-template', {
     },
     template: '#filter-template',
     methods: {
+        //Remove filter from the list
         RemoveFilter: function (FilterName) {
             $("#FilterPartial" + FilterName).remove(); //Remove specified element
             let filters = [];
@@ -216,6 +227,7 @@ Vue.component('filter-template', {
 
             IndexApp.filters = filters;
         },
+        //Switch from Single to ranged or vise versa
         ChangeTextInputType: function(col) {
             $('#TextInputContainer' + col).html('');
 
@@ -231,6 +243,7 @@ Vue.component('filter-template', {
                     break;
             }
         },
+        //Add ORder Selection options
         AddAsDeOptions: function (name) {
             if (this.orderSelect == "" && $('#OrderSelect').length == 0) {
                 this.orderShow = true;
@@ -238,6 +251,7 @@ Vue.component('filter-template', {
                 IndexApp.colName = name;
             }
         },
+        //Remove Order selection options
         RemoveAsDeOptions: function () {
             this.orderShow = false;
             this.orderSelect = "";
@@ -246,6 +260,7 @@ Vue.component('filter-template', {
     }
 });
 
+//Order Selection Tempalte
 Vue.component('order-select', {
     data: function() {
         return {
