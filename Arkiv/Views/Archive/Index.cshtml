@@ -72,11 +72,11 @@
     <div :id="'FilterPartial' + name">
         <p>
             <div class="container">
-                <a class="btn btn-primary btn-block" data-toggle="collapse" :href="'#CollapseFilter'  + name ">{{ name }}</a>
+                <a class="btn btn-primary btn-block" data-toggle="collapse" :href="'#CollapseFilter'  + name.replace(' ', '') ">{{ name }}</a>
             </div>
         </p>
         
-        <div class="collapse" :id="'CollapseFilter' + name">
+        <div class="collapse" :id="'CollapseFilter' + name.replace(' ', '')">
             <div class="card">
                 <div class="card-body">
                     <input type="button" value="Add Asc/Desc" v-on:click="AddAsDeOptions(name)" class="btn btn-success" />
