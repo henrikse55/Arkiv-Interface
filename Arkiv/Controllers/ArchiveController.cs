@@ -78,7 +78,7 @@ namespace Arkiv.Controllers
             List<SelectListItem> ColumnNamesSelectList = ColumnNames.Select(x => new SelectListItem() { Value = x.COLUMN_NAME, Text = x.COLUMN_NAME }).ToList(); 
             #endregion
 
-            #region Active Directory account cheching
+            #region Active Directory account checking
             bool ClearWhereFlag = false;
 
             IEnumerable<ActiveModel> ActiveDirectoryGroupModel = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
@@ -154,7 +154,6 @@ namespace Arkiv.Controllers
             ColumnNames.ToList().ForEach(column =>
             {
                 ColumnString += "[" + column.COLUMN_NAME + "]" + (column.COLUMN_NAME.Equals(ColumnNames.Last().COLUMN_NAME) ? " " : ", ");
-
             }); 
             #endregion
 
