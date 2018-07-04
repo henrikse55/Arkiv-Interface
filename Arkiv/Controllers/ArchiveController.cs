@@ -201,22 +201,22 @@ namespace Arkiv.Controllers
                         //Check if the current item is the last item
                         lock (locker)
                         {
-                            WhereClause.Append(Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
+                            WhereClause.Append(Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty).Replace("/", "") + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
                         }
 
-                        ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty), "%" + Filter.Value.One + "%"));
+                        ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty).Replace("/", ""), "%" + Filter.Value.One + "%"));
                         break;
                     case "Range":
                         //Check if the current item is the last item
                         lock (locker)
                         {
-                            WhereClause.Append(Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
+                            WhereClause.Append(Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty).Replace("/", "") + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
                         }
 
                         ParamList.AddRange(new(string, object)[]
                         {
-                                ("@" + Filter.Value.One.Replace(" ", string.Empty), Filter.Value.One),
-                                ("@" + Filter.Value.Two.Replace(" ", string.Empty), Filter.Value.Two)
+                                ("@" + Filter.Value.One.Replace(" ", string.Empty).Replace("/", ""), Filter.Value.One),
+                                ("@" + Filter.Value.Two.Replace(" ", string.Empty).Replace("/", ""), Filter.Value.Two)
                         });
                         break;
                 }
