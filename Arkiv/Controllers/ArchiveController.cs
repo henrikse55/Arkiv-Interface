@@ -66,7 +66,7 @@ namespace Arkiv.Controllers
             } 
             #endregion
 
-            StringBuilder WhereClause = new StringBuilder("WHERE (");
+            StringBuilder WhereClause = new StringBuilder("WHERE ");
 
             #region Initial Column Data
             string ColumnNamesQuery = @"SELECT COLUMNS.COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'arkiv' AND COLUMN_NAME NOT IN (
@@ -91,6 +91,7 @@ namespace Arkiv.Controllers
 
             if (SortedGroups.Count() > 0)
             {
+                WhereClause.Append("(");
                 for (int i = 0; i < SortedGroups.Count(); i++)
                 {
                     if (i < SortedGroups.Count() && i > 0)
@@ -144,7 +145,7 @@ namespace Arkiv.Controllers
             }
             else
             {
-                OrderByClause += " ORDER BY [Id] ASC OFFSET {off} ROWS FETCH NEXT 50 ROWS ONLY ";
+                OrderByClause += " ORDER BY [PRTDATE] DESC OFFSET {off} ROWS FETCH NEXT 50 ROWS ONLY ";
             }
             #endregion
 
