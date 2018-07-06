@@ -16,7 +16,7 @@
 
     <hr />
     <div class="row">
-        <div class="col-md-2" style="position: sticky; top: 0; height: 100%;">
+        <div class="col-md-2" style="position: sticky; top: 0; height: 100%; min-width: 250px;" >
             <h2>Filter section</h2>
             <div class="table-bordered">
                 <select asp-items="Model.SelectListItems" v-on:change="GetSelectedItem()" v-model="selectedItem" id="dropdownindex" class="form-control btn btn-dark dropdown">
@@ -25,7 +25,7 @@
                 <div class="table-bordered" id="FilterContainer" style="overflow-y: scroll; max-height: 650px;">
                     <filter-template v-for="item in filters" :key="item" v-bind:name="item"></filter-template>
                 </div>
-                <input type="button" value="Apply Filters" id="ApplyButton" class="form-control" v-on:click="PostFilters(false)" />
+                <input type="button" value="Apply Filters" id="ApplyButton" class="form-control" v-on:click="PostFilters(false)" :disabled="tableLoader"/>
 
             </div>
             <div class="progress" style="background-color: white;">
