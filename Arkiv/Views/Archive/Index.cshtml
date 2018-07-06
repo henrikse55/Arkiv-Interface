@@ -16,7 +16,7 @@
 
     <hr />
     <div class="row">
-        <div class="col-md-2" style="position: sticky; top: 0; height: 100%; min-width: 250px;" >
+        <div class="col-md-2" style="position: sticky; top: 0; height: 100%; min-width: 180px;" >
             <h2>Filter section</h2>
             <div class="table-bordered">
                 <select asp-items="Model.SelectListItems" v-on:change="GetSelectedItem()" v-model="selectedItem" id="dropdownindex" class="form-control btn btn-dark dropdown">
@@ -34,6 +34,7 @@
         </div>
         <div class="col-md-10">
             <h1>Table section</h1>
+            <a>| Total rows: {{ page.pagesRaw }} | Current page: {{ page.current+1 }} out of {{ page.pages == 0 ? 1 : page.pages }} | </a>
             <div id="loader" v-if="tableLoader">
                 <i class="fas fa-spinner fa-pulse fa-8x"></i>
             </div>

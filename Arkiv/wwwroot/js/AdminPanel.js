@@ -144,7 +144,7 @@
             });
         },
         changeClickedParam: function (param) {
-            this.clickedParam = param;
+            this.clickedParam = JSON.stringify(JSON.parse(param), undefined, 4);
         }
     }
 });

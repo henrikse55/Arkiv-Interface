@@ -7,6 +7,7 @@
         pages: 0,
         page: {
             pages: 0,
+            pagesRaw: 0,
             numbers: [],
             current: 0
         },
@@ -173,7 +174,8 @@
         CalculatePages: function ()
         {
             let pageValue = $("#pages").html();
-            this.page.pages = parseInt(pageValue);
+            this.page.pages = Math.round(parseInt(pageValue) / 50);
+            this.page.pagesRaw = Math.round(parseInt(pageValue));
 
             this.page.numbers = [];
             let start = (this.page.current - 5);

@@ -59,7 +59,7 @@ namespace Arkiv.Controllers
         public async Task<IActionResult> GetTable(FilterModel[] Filters, OrderDataModel OrderData, int pages)
         {
             #region Logging
-            if (Filters != null && Filters.Count() == 0)
+            if (Filters != null && Filters.Count() > 0)
             {
                 string parameters = JsonConvert.SerializeObject(new { Filters, OrderData });
                 sql.LogAsync("Filter Applied", DateTime.Now, User.Identity.Name, parameters);
@@ -166,7 +166,7 @@ namespace Arkiv.Controllers
                            .Replace("{order}", OrderByClause).Replace("{off}", (pages * 50).ToString());
 
             string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " + WhereClause.ToString();
-            int pageCount = (int)(await sql.GetDataRawAsync(countQuery, ParamList.ToArray()).ConfigureAwait(false)).Rows[0][0] / 50;
+            int pageCount = (int)(await sql.GetDataRawAsync(countQuery, ParamList.ToArray()).ConfigureAwait(false)).Rows[0][0];
 
             IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>(DataQueryV2, ParamList.ToArray()).ConfigureAwait(false); 
             #endregion
