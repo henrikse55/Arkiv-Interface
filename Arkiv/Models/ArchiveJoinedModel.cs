@@ -5,13 +5,13 @@ namespace Arkiv.Models
 {
     public class ArchiveJoinedModel
     {
-        public IEnumerable<SelectListItem> selectListItems { get; set; }
+        public IEnumerable<SelectListItem> SelectListItems { get; set; }
 
-        public IEnumerable<ArchiveDataModel> data { get; set; }
+        public IEnumerable<ArchiveDataModel> Data { get; set; }
 
-        public int pages { get; internal set; }
+        public int Pages { get; internal set; }
 
-        public bool adminPanelAccess { get; set; }
+        public bool AdminPanelAccess { get; set; }
 
         public Dictionary<string, string> FullColumnNames { get; set; }
 

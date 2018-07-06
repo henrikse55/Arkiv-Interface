@@ -72,7 +72,7 @@ namespace Arkiv.Data
         {
             using (SqlConnection conn = new SqlConnection(_connection))
             {
-                await conn.OpenAsync();
+                await conn.OpenAsync().ConfigureAwait(false);
                 using (SqlTransaction trans = conn.BeginTransaction())
                 {
                     using (SqlCommand select = new SqlCommand(query, conn, trans))
@@ -86,7 +86,7 @@ namespace Arkiv.Data
                         #region Load Data
                         Type type = typeof(T);
                         string[] properties = GetProps(type);
-                        SqlDataReader reader = await select.ExecuteReaderAsync();
+                        SqlDataReader reader = await select.ExecuteReaderAsync().ConfigureAwait(false);
 
                         List<T> items = new List<T>();
                         while (reader.Read())
@@ -103,7 +103,7 @@ namespace Arkiv.Data
                                     {
                                         try
                                         {
-                                            if (!await reader.IsDBNullAsync(index))
+                                            if (!await reader.IsDBNullAsync(index).ConfigureAwait(false))
                                                 type.GetProperty(prop).SetValue(instance, converter.ConvertTo(reader[prop], type.GetProperty(prop).PropertyType));
                                         }
                                         catch (Exception)
@@ -112,7 +112,7 @@ namespace Arkiv.Data
                                     }
                                     else
                                     {
-                                        if (!await reader.IsDBNullAsync(index))
+                                        if (!await reader.IsDBNullAsync(index).ConfigureAwait(false))
                                         {
                                             type.GetProperty(prop).SetValue(instance, reader[prop]);
                                         }
@@ -162,7 +162,7 @@ namespace Arkiv.Data
         {
             using (SqlConnection conn = new SqlConnection(_connection))
             {
-                await conn.OpenAsync();
+                await conn.OpenAsync().ConfigureAwait(false);
                 using (SqlTransaction trans = conn.BeginTransaction())
                 {
                     using (SqlCommand command = new SqlCommand(query, conn, trans))
@@ -171,7 +171,7 @@ namespace Arkiv.Data
                             foreach ((string, object) parameter in parameters)
                                 command.Parameters.AddWithValue(parameter.Item1, parameter.Item2);
 
-                        int rows = await command.ExecuteNonQueryAsync();
+                        int rows = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                         trans.Commit();
 
                         return rows;
@@ -201,7 +201,7 @@ namespace Arkiv.Data
                             ("@time", time),
                             ("@user", user),
                             ("@parameters", paramters)
-            });
+            }).ConfigureAwait(false);
         }
 
         public DataTable GetDataRaw(string query, (string, object)[] parameters = null)
@@ -231,7 +231,7 @@ namespace Arkiv.Data
         {
             using (SqlConnection conn = new SqlConnection(_connection))
             {
-                await conn.OpenAsync();
+                await conn.OpenAsync().ConfigureAwait(false);
                 using (SqlTransaction trans = conn.BeginTransaction())
                 {
                     using (SqlCommand command = new SqlCommand(query, conn, trans))
@@ -240,7 +240,7 @@ namespace Arkiv.Data
                             foreach ((string, object) parameter in parameters)
                                 command.Parameters.AddWithValue(parameter.Item1, parameter.Item2);
 
-                        SqlDataReader reader = await command.ExecuteReaderAsync();
+                        SqlDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
                         DataTable table = new DataTable();
                         table.Load(reader);
                         return table;

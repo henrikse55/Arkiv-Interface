@@ -23,10 +23,10 @@ namespace Arkiv.Controllers
         private ISqlData sql;
         private Config Configuration;
 
-        public ArchiveController(ISqlData _data, Config _config)
+        public ArchiveController(ISqlData data, Config config)
         {
-            sql = _data;
-            Configuration = _config;
+            sql = data;
+            Configuration = config;
         }
         #endregion
 
@@ -36,7 +36,7 @@ namespace Arkiv.Controllers
         {
             string ColumnNamesQuery = @"SELECT * FROM ColumnDefinition WHERE ShortName NOT IN (SELECT [Column] FROM ColumnBlacklist)";
 
-            IEnumerable<ColumnDefinitionModel> ColumnNames = await sql.SelectDataAsync<ColumnDefinitionModel>(ColumnNamesQuery);
+            IEnumerable<ColumnDefinitionModel> ColumnNames = await sql.SelectDataAsync<ColumnDefinitionModel>(ColumnNamesQuery).ConfigureAwait(false);
 
             List<SelectListItem> ColumnNamesSelectList = ColumnNames.Select(x => new SelectListItem() { Value = x.FullName, Text = x.FullName }).ToList();
             
@@ -51,10 +51,10 @@ namespace Arkiv.Controllers
                 if (User.Identity.Name.Contains(user)) AdminPanelAccess = true;
             });
 
-            return View(new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = null, adminPanelAccess = AdminPanelAccess });
+            return View(new ArchiveJoinedModel() { SelectListItems = ColumnNamesSelectList.AsEnumerable(), Data = null, AdminPanelAccess = AdminPanelAccess });
         }
 
-        [HttpPost]
+        //[HttpPost]
         [Route("/Archive/GetTable")]
         public async Task<IActionResult> GetTable(FilterModel[] Filters, OrderDataModel OrderData, int pages)
         {
@@ -73,7 +73,7 @@ namespace Arkiv.Controllers
                                         	SELECT [Column] FROM ColumnBlacklist
                                         )";
 
-            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>(ColumnNamesQuery);
+            IEnumerable<ColumnNameModel> ColumnNames = await sql.SelectDataAsync<ColumnNameModel>(ColumnNamesQuery).ConfigureAwait(false);
 
             List<SelectListItem> ColumnNamesSelectList = ColumnNames.Select(x => new SelectListItem() { Value = x.COLUMN_NAME, Text = x.COLUMN_NAME }).ToList(); 
             #endregion
@@ -81,7 +81,7 @@ namespace Arkiv.Controllers
             #region Active Directory account checking
             bool ClearWhereFlag = false;
 
-            IEnumerable<ActiveModel> ActiveDirectoryGroupModel = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
+            IEnumerable<ActiveModel> ActiveDirectoryGroupModel = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active").ConfigureAwait(false);
 
             IEnumerable<string> Groups = GetUserGroups();
 
@@ -116,7 +116,7 @@ namespace Arkiv.Controllers
                 if (SortedGroups.Count() != 0)
                     WhereClause.Append(" AND ");
 
-                (string, (string, object)[]) items = await GetFiltersToQueriesAsync(Filters);
+                (string, (string, object)[]) items = await GetFiltersToQueriesAsync(Filters).ConfigureAwait(false);
 
                 WhereClause.Append(items.Item1);
                 ParamList.AddRange(items.Item2);
@@ -165,9 +165,9 @@ namespace Arkiv.Controllers
                            .Replace("{order}", OrderByClause).Replace("{off}", (pages * 50).ToString());
 
             string countQuery = "SELECT COUNT(Id) as cn FROM arkiv " + WhereClause.ToString();
-            int pageCount = (int)(await sql.GetDataRawAsync(countQuery, ParamList.ToArray())).Rows[0][0];
+            int pageCount = (int)(await sql.GetDataRawAsync(countQuery, ParamList.ToArray()).ConfigureAwait(false)).Rows[0][0] / 50;
 
-            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>(DataQueryV2, ParamList.ToArray()); 
+            IEnumerable<ArchiveDataModel> data = await sql.SelectDataAsync<ArchiveDataModel>(DataQueryV2, ParamList.ToArray()).ConfigureAwait(false); 
             #endregion
 
             //If there is no results, return the json object, "No Match"
@@ -176,7 +176,7 @@ namespace Arkiv.Controllers
                 return Json("No Match");
             }
 
-            return PartialView("TablePartial",new ArchiveJoinedModel() { selectListItems = ColumnNamesSelectList.AsEnumerable(), data = data, pages = pageCount, FullColumnNames = await GetColumnDefinitions(ColumnNames), ColumnsNotOnBlacklist = ColumnNames });
+            return PartialView("TablePartial",new ArchiveJoinedModel() { SelectListItems = ColumnNamesSelectList.AsEnumerable(), Data = data, Pages = pageCount, FullColumnNames = await GetColumnDefinitions(ColumnNames).ConfigureAwait(false), ColumnsNotOnBlacklist = ColumnNames });
         }
         #endregion
 
@@ -187,7 +187,7 @@ namespace Arkiv.Controllers
             List<(string, object)> ParamList = new List<(string, object)>();
 
             string ColumnDefQuery = @"SELECT * FROM ColumnDefinition WHERE ShortName NOT IN (SELECT [Column] FROM ColumnBlacklist)";
-            IEnumerable<ColumnDefinitionModel> columnDefinitions = await sql.SelectDataAsync<ColumnDefinitionModel>(ColumnDefQuery);
+            IEnumerable<ColumnDefinitionModel> columnDefinitions = await sql.SelectDataAsync<ColumnDefinitionModel>(ColumnDefQuery).ConfigureAwait(false);
 
             object locker = new object();
             Filters.AsParallel().ForAll(Filter =>
@@ -200,22 +200,22 @@ namespace Arkiv.Controllers
                         //Check if the current item is the last item
                         lock (locker)
                         {
-                            WhereClause.Append(Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty).Replace("/", "") + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
+                            WhereClause.Append(Filter.Name + " like " + "@" + Filter.Value.One.Replace(" ", string.Empty, StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal) + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
                         }
 
-                        ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty).Replace("/", ""), "%" + Filter.Value.One + "%"));
+                        ParamList.Add(("@" + Filter.Value.One.Replace(" ", string.Empty, StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal), "%" + Filter.Value.One + "%"));
                         break;
                     case "Range":
                         //Check if the current item is the last item
                         lock (locker)
                         {
-                            WhereClause.Append(Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty).Replace("/", "") + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty) + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
+                            WhereClause.Append(Filter.Name + " BETWEEN " + "@" + Filter.Value.One.Replace(" ", string.Empty, StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal) + " AND " + "@" + Filter.Value.Two.Replace(" ", string.Empty, StringComparison.Ordinal) + (!Filter.Equals(Filters.Last()) ? " AND " : ""));
                         }
 
                         ParamList.AddRange(new(string, object)[]
                         {
-                                ("@" + Filter.Value.One.Replace(" ", string.Empty).Replace("/", ""), Filter.Value.One),
-                                ("@" + Filter.Value.Two.Replace(" ", string.Empty).Replace("/", ""), Filter.Value.Two)
+                                ("@" + Filter.Value.One.Replace(" ", string.Empty, StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal), Filter.Value.One),
+                                ("@" + Filter.Value.Two.Replace(" ", string.Empty, StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal), Filter.Value.Two)
                         });
                         break;
                 }
@@ -226,7 +226,7 @@ namespace Arkiv.Controllers
 
         private async Task<Dictionary<string, string>> GetColumnDefinitions(IEnumerable<ColumnNameModel> columnNames)
         {
-            IEnumerable<ColumnDefinitionModel> ColumnDefinitions = await sql.SelectDataAsync<ColumnDefinitionModel>("SELECT * FROM ColumnDefinition");
+            IEnumerable<ColumnDefinitionModel> ColumnDefinitions = await sql.SelectDataAsync<ColumnDefinitionModel>("SELECT * FROM ColumnDefinition").ConfigureAwait(false);
 
             KeyValuePair<string, string>[] ColumnsforDictionary = new KeyValuePair<string, string>[columnNames.Count()];
 
@@ -245,7 +245,7 @@ namespace Arkiv.Controllers
         [Route("/pdf/{doc}")]
         public async Task<IActionResult> GetPdf(string doc)
         {
-            MemoryStream PdfDocumentStream = await GetFileStream(doc);
+            MemoryStream PdfDocumentStream = await GetFileStream(doc).ConfigureAwait(false);
 
             if (PdfDocumentStream != null)
             {
@@ -263,7 +263,7 @@ namespace Arkiv.Controllers
         [Route("/download/{doc}")]
         public async Task<IActionResult> Download(string doc)
         {
-            MemoryStream PdfDocumentStream = await GetFileStream(doc);
+            MemoryStream PdfDocumentStream = await GetFileStream(doc).ConfigureAwait(false);
 
             if (PdfDocumentStream != null)
             {
@@ -287,7 +287,7 @@ namespace Arkiv.Controllers
                 using (FileStream filestream = new FileStream(PdfDocumentPath.First(), FileMode.Open, FileAccess.Read, FileShare.Inheritable))
                 {
                     MemoryStream PdfDocumentStream = new MemoryStream();
-                    await filestream.CopyToAsync(PdfDocumentStream);
+                    await filestream.CopyToAsync(PdfDocumentStream).ConfigureAwait(false);
                     PdfDocumentStream.Position = 0;
 
                     return PdfDocumentStream;

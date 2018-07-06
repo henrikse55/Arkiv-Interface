@@ -11,7 +11,7 @@ namespace Arkiv
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
+        public Startup()
         {
             var builder = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())

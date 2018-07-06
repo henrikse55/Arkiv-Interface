@@ -1,5 +1,6 @@
 ﻿namespace Arkiv.Models
 {
+#pragma warning disable CA1819 // Properties should not return arrays
     public class ArchiveDataModel
     {
         public int Id { get; set; }
@@ -76,4 +77,5 @@
 
         public string PATH { get; set; }
     }
+#pragma warning restore CA1819 // Properties should not return arrays
 }

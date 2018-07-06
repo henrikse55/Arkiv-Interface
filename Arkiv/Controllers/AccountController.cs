@@ -17,17 +17,17 @@ namespace Arkiv.Controllers
         private ISqlData sql { get; set; }
         private readonly ILogger logger;
 
-        public AccountController(ISqlData _sql, ILogger<AccountController> _logger)
+        public AccountController(ISqlData sql, ILogger<AccountController> logger)
         {
-            sql = _sql;
-            logger = _logger;
+            this.sql = sql;
+            this.logger = logger;
         }
 
         [HttpGet]
         [Route("access")]
         public async Task<IActionResult> Access()
         {
-            IEnumerable<ActiveModel> models = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active");
+            IEnumerable<ActiveModel> models = await sql.SelectDataAsync<ActiveModel>("SELECT * FROM active").ConfigureAwait(false);
 
             WindowsIdentity identity = WindowsIdentity.GetCurrent();
 
@@ -41,7 +41,7 @@ namespace Arkiv.Controllers
                 return null;
             });
 
-            var sorted = (from model in models where groups.Any(y => y == model.Group.Replace("\\\\", "\\")) select model.DEVI);
+            var sorted = (from model in models where groups.Any(y => y == model.Group.Replace("\\\\", "\\", StringComparison.Ordinal)) select model.DEVI);
 
             return Json(sorted);
         }

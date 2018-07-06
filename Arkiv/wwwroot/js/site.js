@@ -18,7 +18,7 @@
         ready: function () {
             $.ajax({
                 type: 'POST',
-                url: '/Archive/GetTable/',
+                url: '/Archive/GetTable',
                 success: (data) => {
                     $('#TableContainer').html(data);
                     this.tableLoader = false;
@@ -39,6 +39,8 @@
 
                 return;
             }
+
+            this.pages.current = 0; //Reset the current page
 
             let Filters = [];
 
@@ -141,12 +143,13 @@
 
             $.ajax({
                 type: 'POST',
-                url: '/Archive/GetTable/',
+                url: '/Archive/GetTable',
                 data: { Filters: FinalFilters, OrderData: { Order: this.orderBy, Column: this.colName }, pages: this.page.current},
                 success: (data) => {
                     if (data !== 'No Match') {
                         $('#TableContainer').html(data);
 
+                        this.CalculatePages();
                         Snack('The requested record(s) was found successfuly!', '#33cc33');
 
                         $('#ApplyButton').removeAttr('disabled'); //Re-enable the Apply button
@@ -169,7 +172,8 @@
         },
         CalculatePages: function ()
         {
-            this.page.pages = parseInt($("#pages").html());
+            let pageValue = $("#pages").html();
+            this.page.pages = parseInt(pageValue);
 
             this.page.numbers = [];
             let start = (this.page.current - 5);
@@ -187,7 +191,6 @@
         PageChange: function (page)
         {
             this.page.current = page;
-            this.CalculatePages();
             this.PostFilters(true);
         }
     }

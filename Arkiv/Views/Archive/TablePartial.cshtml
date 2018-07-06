@@ -10,7 +10,7 @@
         </tr>
     </thead>
     <tbody>
-        @foreach (ArchiveDataModel data in Model.data)
+        @foreach (ArchiveDataModel data in Model.Data)
         {
             Type type = typeof(ArchiveDataModel);
             var props = type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance).Where(x => Model.ColumnsNotOnBlacklist.Any(c => c.COLUMN_NAME == x.Name));
@@ -47,4 +47,4 @@
         }
     </tbody>
 </table>
-<div id="pages" hidden>@Model.pages</div>
+<div id="pages" hidden>@Model.Pages</div>
