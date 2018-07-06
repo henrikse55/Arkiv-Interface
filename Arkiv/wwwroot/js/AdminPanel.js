@@ -28,7 +28,8 @@
         model: {
             ADR: {},
             blacklist: "",
-        }
+        },
+        clickedParam: ''
     },
     methods: {
         init: function () {
@@ -141,6 +142,9 @@
                     this.blacklist = temp;
                 }
             });
+        },
+        changeClickedParam: function (param) {
+            this.clickedParam = param;
         }
     }
 });

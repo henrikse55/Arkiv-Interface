@@ -3,7 +3,6 @@
     ViewData["Title"] = "Admin Panel";
 }
 
-
 <div class="container-fluid" id="adminpanel">
     <div class="row justify-content-end">
         <div class="col-md-4">
@@ -129,10 +128,21 @@
                         <td>{{ log.action }}</td>
                         <td>{{ log.time }}</td>
                         <td>{{ log.user }}</td>
-                        <td><a class="btn btn-outline-info">View</a></td>
+                        <td><a class="btn btn-outline-info" v-on:click="changeClickedParam(log.paramters)" data-toggle="modal" data-target="#paramModal">View</a></td>
                     </tr>
                 </tbody>
             </table>
+
+            <div id="paramModal" class="modal fade">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-body">
+                            {{clickedParam}}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="col-md-5">
                 <div class="justify-content-center">
                     <nav class="">
