@@ -215,8 +215,8 @@ namespace Arkiv.Controllers
 
                         ParamList.AddRange(new(string, object)[]
                         {
-                                ("@" + Filter.Value.One.Replace(" ", string.Empty, StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal), "'" + Filter.Value.One + "'"),
-                                ("@" + Filter.Value.Two.Replace(" ", string.Empty, StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal), "'" + Filter.Value.Two + "'")
+                                ("@" + Filter.Value.One.Replace(" ", string.Empty, StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal), Filter.Value.One),
+                                ("@" + Filter.Value.Two.Replace(" ", string.Empty, StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal), Filter.Value.Two)
                         });
                         break;
                 }
